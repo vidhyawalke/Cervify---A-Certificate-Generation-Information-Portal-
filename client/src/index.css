@@ -40,63 +40,63 @@
   --font-heading: 'DM Serif Display', Georgia, serif;
   --font-body:    'Nunito', 'Inter', sans-serif;
 
-  /* ── PRIMARY PALETTE — Soft Blue ─────────── */
-  --primary:          #60A5FA; /* Soft Blue */
-  --primary-hover:    #3B82F6; /* Brighter Blue */
-  --primary-light:    #EFF6FF; /* Very light blue */
-  --primary-glow:     rgba(96, 165, 250, 0.2);
+  /* ── PRIMARY PALETTE — Soft Academic Blue ─────────── */
+  --primary:          #2A5A8F;
+  --primary-hover:    #1E426D;
+  --primary-light:    #EBF3FC;
+  --primary-glow:     rgba(42, 90, 143, 0.12);
 
-  /* ── ACCENT — Cyan/Sky Blue ────────────────────── */
-  --accent:           #38BDF8;
-  --accent-hover:     #0EA5E9;
-  --accent-light:     rgba(56, 189, 248, 0.15);
+  /* ── ACCENT — Warm Gold / Amber ────────────────────── */
+  --accent:           #C8841A;
+  --accent-hover:     #B07516;
+  --accent-light:     rgba(200, 132, 26, 0.12);
 
   /* ── SEMANTIC ────────────────────────────────────── */
-  --success:          #10B981;
-  --success-light:    #D1FAE5;
-  --warning:          #F59E0B;
-  --warning-light:    #FEF3C7;
-  --danger:           #EF4444;
-  --danger-light:     #FEE2E2;
+  --success:          #2E7D32;
+  --success-light:    #E8F5E9;
+  --warning:          #C8841A;
+  --warning-light:    #FFF3E0;
+  --danger:           #C0392B;
+  --danger-light:     #FFEBEE;
 
-  /* ── BACKGROUND LAYERS — Light Mode Only ──── */
-  --bg-app:           #F8FAFC;
+  /* ── BACKGROUND LAYERS — Light Mode (default) ──── */
+  --bg-app:           #F0F4F8;
   --bg-surface:       #FFFFFF;
-  --bg-surface-2:     #F1F5F9;
+  --bg-surface-2:     #E4ECF5;
   --bg-surface-glass: rgba(255, 255, 255, 0.85);
   --bg-surface-glass-hover: rgba(255, 255, 255, 0.95);
 
   /* ── BORDERS ─────────────────────────────────────── */
-  --border:           rgba(148, 163, 184, 0.25);
-  --border-strong:    rgba(148, 163, 184, 0.4);
-  --border-focus:     #60A5FA;
-  --border-glow:      0 0 0 3px rgba(96, 165, 250, 0.2);
+  --border:           rgba(42, 90, 143, 0.13);
+  --border-strong:    rgba(42, 90, 143, 0.22);
+  --border-focus:     #2A5A8F;
+  --border-glow:      0 0 0 3px rgba(42, 90, 143, 0.15);
 
   /* ── TEXT ────────────────────────────────────────── */
-  --text:             #1E293B;
-  --text-primary:     #0F172A;
-  --text-secondary:   #475569;
-  --text-light:       #94A3B8;
+  --text:             #1C2D42;
+  --text-primary:     #1C2D42;
+  --text-secondary:   #44566C;
+  --text-light:       #6B7C93;
 
   /* ── SIDEBAR ─────────────────────────────────────── */
-  --sidebar-bg:         #FFFFFF;
-  --sidebar-border:     rgba(148, 163, 184, 0.2);
-  --sidebar-text:       #334155;
-  --sidebar-text-muted: rgba(51, 65, 85, 0.6);
-  --sidebar-accent:     #60A5FA;
-  --sidebar-accent-bg:  #EFF6FF;
-  --sidebar-active-bg:  #DBEAFE;
+  --sidebar-bg:         #1A2535;
+  --sidebar-border:     rgba(255, 255, 255, 0.08);
+  --sidebar-text:       #E2F1FF;
+  --sidebar-text-muted: rgba(226, 241, 255, 0.55);
+  --sidebar-accent:     #C8841A;
+  --sidebar-accent-bg:  #233247;
+  --sidebar-active-bg:  rgba(59, 130, 246, 0.18);
 
   /* ── GRADIENTS ───────────────────────────────────── */
-  --gradient-brand:     linear-gradient(135deg, #93C5FD 0%, #60A5FA 100%);
-  --gradient-accent:    linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%);
-  --gradient-hero:      linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 50%, #EFF6FF 100%);
+  --gradient-brand:     linear-gradient(135deg, #2A5A8F 0%, #4D84C4 100%);
+  --gradient-accent:    linear-gradient(135deg, #C8841A 0%, #E09A20 100%);
+  --gradient-hero:      linear-gradient(135deg, #0F1E2E 0%, #2A5A8F 50%, #0F1E2E 100%);
 
   /* ── SHADOWS ─────────────────────────────────────── */
-  --shadow-sm:        0 1px 4px rgba(15, 23, 42, 0.04);
-  --shadow-md:        0 4px 16px rgba(15, 23, 42, 0.06);
-  --shadow-lg:        0 8px 32px rgba(15, 23, 42, 0.08);
-  --glow-primary:     0 0 32px rgba(96, 165, 250, 0.25);
+  --shadow-sm:        0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-md:        0 4px 16px rgba(42, 90, 143, 0.10);
+  --shadow-lg:        0 8px 32px rgba(42, 90, 143, 0.14);
+  --glow-primary:     0 0 32px rgba(42, 90, 143, 0.12);
 
   /* ── LAYOUT ──────────────────────────────────────── */
   --sidebar-width:    260px;

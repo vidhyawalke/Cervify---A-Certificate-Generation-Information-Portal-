@@ -53,8 +53,14 @@ export function AppProvider({ children }) {
         () => JSON.parse(localStorage.getItem('cervify-user')) || null
     );
 
-    // ── Theme (Light only) ────────────────────────────────────────────────────
-    const theme = 'light';
+    // ── Theme (Light / Dark) ──────────────────────────────────────────────────
+    const [theme, setTheme] = useState(
+        () => localStorage.getItem('cervify-theme') || 'light'
+    );
+
+    const toggleTheme = useCallback(() => {
+        setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+    }, []);
 
     // ── Navigation ────────────────────────────────────────────────────────────
     const [currentView, setCurrentView] = useState('landing'); // 'landing' | 'login' | 'verify' | 'dashboard'
@@ -177,7 +183,7 @@ export function AppProvider({ children }) {
         token, user, login, logout,
 
         // Theme
-        theme,
+        theme, toggleTheme,
 
         // Navigation
         currentView, setCurrentView,

@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Sun, Moon } from 'lucide-react';
 import { useAppContext } from './context/AppContext';
 
 import LoginPage        from './pages/LoginPage';
@@ -66,7 +66,7 @@ function ActivePage({ activeTab }) {
  * @returns {JSX.Element}
  */
 export default function App() {
-    const { currentView, activeTab } = useAppContext();
+    const { currentView, activeTab, theme, toggleTheme } = useAppContext();
 
     if (currentView === 'landing') return <LandingPage />;
     if (currentView === 'login')  return <LoginPage />;
@@ -91,7 +91,17 @@ export default function App() {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {/* Removed cosmetic notification bell as requested */}
+                        <button
+                            className="theme-switch"
+                            onClick={toggleTheme}
+                            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+                        >
+                            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                        </button>
+                        <button className="theme-switch" title="Notifications">
+                            <Bell size={18} />
+                            <span className="notification-dot" />
+                        </button>
                     </div>
                 </header>
 

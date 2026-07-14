@@ -178,13 +178,13 @@ export default function LandingPage() {
                 HERO
             ══════════════════════════════════════════════════════════ */}
             <section style={{
-                background: 'var(--gradient-hero)',
+                background: 'linear-gradient(135deg, #0F2D1F 0%, #2A5A8F 55%, #0F2D1F 100%)',
                 position: 'relative', overflow: 'hidden'
             }}>
                 {/* Decorative radial glows */}
                 <div style={{
-                    position: 'absolute', inset: 0, opacity: 0.4, pointerEvents: 'none',
-                    background: 'radial-gradient(ellipse at 18% 80%, var(--accent-light) 0%, transparent 48%), radial-gradient(ellipse at 82% 18%, var(--primary-glow) 0%, transparent 48%)'
+                    position: 'absolute', inset: 0, opacity: 0.12, pointerEvents: 'none',
+                    background: 'radial-gradient(ellipse at 18% 80%, #C8841A 0%, transparent 48%), radial-gradient(ellipse at 82% 18%, #3A8F5E 0%, transparent 48%)'
                 }} />
 
                 <div style={{
@@ -196,27 +196,26 @@ export default function LandingPage() {
                     <div style={{ position: 'relative', zIndex: 1 }}>
                         <div style={{
                             display: 'inline-flex', alignItems: 'center', gap: 7,
-                            background: 'var(--bg-surface)', border: '1px solid var(--border)',
-                            color: 'var(--text-secondary)', fontSize: 12, fontWeight: 700,
-                            padding: '6px 14px', borderRadius: 999, marginBottom: 24,
-                            boxShadow: 'var(--shadow-sm)'
+                            background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
+                            color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: 700,
+                            padding: '6px 14px', borderRadius: 999, marginBottom: 24
                         }}>
-                            <Star size={11} fill="currentColor" style={{ color: 'var(--accent)' }} />
+                            <Star size={11} fill="currentColor" style={{ color: '#C8841A' }} />
                             Trusted by 340+ educational institutions
                         </div>
 
                         <h1 style={{
                             fontFamily: 'var(--font-heading)',
                             fontSize: 'clamp(38px, 5vw, 60px)',
-                            color: 'var(--text-primary)', lineHeight: 1.18, marginBottom: 20
+                            color: 'white', lineHeight: 1.18, marginBottom: 20
                         }}>
                             Certify Every<br />
-                            <em style={{ color: 'var(--primary)' }}>Achievement</em>
+                            <em style={{ color: '#C8841A' }}>Achievement</em>
                             <br />With Confidence
                         </h1>
 
                         <p style={{
-                            color: 'var(--text-secondary)', fontSize: 17,
+                            color: 'rgba(226,237,230,0.75)', fontSize: 17,
                             lineHeight: 1.75, marginBottom: 32, maxWidth: 460
                         }}>
                             The all-in-one academic certification portal that empowers coordinators, principals, and administrators to issue, approve, and manage student certificates seamlessly.
@@ -227,14 +226,14 @@ export default function LandingPage() {
                                 onClick={() => setCurrentView('login')}
                                 style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 8,
-                                    background: 'var(--primary)', color: 'white', fontWeight: 700,
+                                    background: '#C8841A', color: 'white', fontWeight: 700,
                                     fontSize: 15, padding: '13px 26px', borderRadius: 12,
                                     border: 'none', cursor: 'pointer',
-                                    boxShadow: 'var(--shadow-md)',
+                                    boxShadow: '0 4px 20px rgba(200,132,26,0.4)',
                                     transition: 'all 0.2s', fontFamily: 'var(--font-body)'
                                 }}
-                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = 'var(--primary-hover)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.background = 'var(--primary)'; }}
+                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(200,132,26,0.5)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(200,132,26,0.4)'; }}
                             >
                                 Start Free Today <ArrowRight size={16} />
                             </button>
@@ -242,13 +241,13 @@ export default function LandingPage() {
                                 onClick={() => setCurrentView('login')}
                                 style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 8,
-                                    background: 'var(--bg-surface)', border: '1px solid var(--border)',
-                                    color: 'var(--text-primary)', fontWeight: 600, fontSize: 15,
+                                    background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.25)',
+                                    color: 'white', fontWeight: 600, fontSize: 15,
                                     padding: '13px 26px', borderRadius: 12,
                                     cursor: 'pointer', transition: 'all 0.2s', fontFamily: 'var(--font-body)'
                                 }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-surface-2)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-surface)'}
+                                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.18)'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.10)'}
                             >
                                 Sign In to Portal
                             </button>
@@ -258,51 +257,50 @@ export default function LandingPage() {
                     {/* Hero preview card */}
                     <div style={{ position: 'relative', zIndex: 1 }} className="hero-card-wrapper">
                         <div style={{
-                            background: 'var(--bg-surface-glass)',
+                            background: 'rgba(255,255,255,0.08)',
                             backdropFilter: 'blur(16px)',
-                            border: '1px solid var(--border-strong)',
-                            boxShadow: 'var(--shadow-lg)',
+                            border: '1px solid rgba(255,255,255,0.18)',
                             borderRadius: 20, padding: 24
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                                <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 700 }}>Recent Certificates</span>
-                                <span style={{ background: 'var(--success-light)', color: 'var(--success)', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 999 }}>● Live</span>
+                                <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 700 }}>Recent Certificates</span>
+                                <span style={{ background: 'rgba(76,175,80,0.25)', color: '#81C784', fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 999 }}>● Live</span>
                             </div>
 
                             {[
-                                { name: 'Alex Johnson',  course: 'Advanced Mathematics',  grade: 'A+', status: 'Approved',  dot: 'var(--success)' },
-                                { name: 'Maria Garcia',  course: 'Physics Fundamentals',  grade: 'A',  status: 'Pending',   dot: 'var(--warning)' },
-                                { name: 'Aisha Patel',   course: 'Chemistry Lab',          grade: 'A+', status: 'Approved',  dot: 'var(--success)' },
+                                { name: 'Alex Johnson',  course: 'Advanced Mathematics',  grade: 'A+', status: 'Approved',  dot: '#4CAF50' },
+                                { name: 'Maria Garcia',  course: 'Physics Fundamentals',  grade: 'A',  status: 'Pending',   dot: '#FFA726' },
+                                { name: 'Aisha Patel',   course: 'Chemistry Lab',          grade: 'A+', status: 'Approved',  dot: '#4CAF50' },
                             ].map((c, i) => (
                                 <div key={i} style={{
                                     display: 'flex', alignItems: 'center', gap: 12,
-                                    background: 'var(--bg-surface)',
-                                    border: '1px solid var(--border)',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.10)',
                                     borderRadius: 12, padding: '12px 16px', marginBottom: 10
                                 }}>
                                     <div style={{
                                         width: 34, height: 34, borderRadius: '50%',
-                                        background: 'var(--primary-light)',
+                                        background: 'rgba(42,90,143,0.5)',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: 'var(--primary-hover)', fontSize: 12, fontWeight: 700, flexShrink: 0
+                                        color: 'white', fontSize: 12, fontWeight: 700, flexShrink: 0
                                     }}>
                                         {c.name.split(' ').map(n => n[0]).join('')}
                                     </div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
-                                        <div style={{ color: 'var(--text-secondary)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.course}</div>
+                                        <div style={{ color: 'white', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
+                                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.course}</div>
                                     </div>
                                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                        <div style={{ color: 'var(--primary)', fontSize: 14, fontWeight: 700 }}>{c.grade}</div>
+                                        <div style={{ color: '#C8841A', fontSize: 14, fontWeight: 700 }}>{c.grade}</div>
                                         <div style={{ color: c.dot, fontSize: 11, fontWeight: 600 }}>{c.status}</div>
                                     </div>
                                 </div>
                             ))}
 
                             <div style={{
-                                paddingTop: 14, borderTop: '1px solid var(--border)',
+                                paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.10)',
                                 display: 'flex', justifyContent: 'space-between',
-                                fontSize: 11, color: 'var(--text-light)'
+                                fontSize: 11, color: 'rgba(255,255,255,0.38)'
                             }}>
                                 <span>Cervify Academy</span>
                                 <span>Jul 2026</span>
@@ -358,12 +356,12 @@ export default function LandingPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
                     {features.map((f, i) => (
                         <div key={i} className="card" style={{ cursor: 'default' }}
-                             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.querySelector('.feat-icon').style.background = 'var(--primary)'; e.currentTarget.querySelector('.feat-icon').style.color = 'white'; }}
-                             onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.querySelector('.feat-icon').style.background = 'var(--primary-light)'; e.currentTarget.querySelector('.feat-icon').style.color = 'var(--primary)'; }}
+                             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(42,90,143,0.35)'; e.currentTarget.querySelector('.feat-icon').style.background = '#2A5A8F'; e.currentTarget.querySelector('.feat-icon').style.color = 'white'; }}
+                             onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.querySelector('.feat-icon').style.background = 'rgba(42,90,143,0.08)'; e.currentTarget.querySelector('.feat-icon').style.color = '#2A5A8F'; }}
                         >
                             <div className="feat-icon" style={{
                                 width: 44, height: 44, borderRadius: 12,
-                                background: 'var(--primary-light)', color: 'var(--primary)',
+                                background: 'rgba(42,90,143,0.08)', color: '#2A5A8F',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 marginBottom: 16, transition: 'all 0.25s'
                             }}>
@@ -379,13 +377,13 @@ export default function LandingPage() {
             {/* ══════════════════════════════════════════════════════════
                 ROLES
             ══════════════════════════════════════════════════════════ */}
-            <section id="roles" style={{ background: 'var(--bg-surface-2)', padding: '80px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
+            <section id="roles" style={{ background: 'rgba(42,90,143,0.04)', padding: '80px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 24px' }}>
                     <div style={{ textAlign: 'center', marginBottom: 56 }}>
                         <div style={{
                             display: 'inline-block', fontSize: 11, fontWeight: 700,
                             textTransform: 'uppercase', letterSpacing: '0.1em',
-                            color: 'var(--accent)', border: '1px solid var(--accent-light)',
+                            color: 'var(--accent)', border: '1px solid rgba(200,132,26,0.3)',
                             padding: '5px 14px', borderRadius: 999, marginBottom: 14
                         }}>Three Roles</div>
                         <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(28px, 4vw, 40px)' }}>
@@ -431,13 +429,13 @@ export default function LandingPage() {
             ══════════════════════════════════════════════════════════ */}
             <section id="about" style={{ maxWidth: 1180, margin: '0 auto', padding: '80px 24px' }}>
                 <div style={{
-                    background: 'var(--primary)',
+                    background: '#2A5A8F',
                     borderRadius: 28, padding: '64px 48px',
                     textAlign: 'center', position: 'relative', overflow: 'hidden'
                 }}>
                     <div style={{
                         position: 'absolute', inset: 0, pointerEvents: 'none',
-                        background: 'radial-gradient(ellipse at 70% 50%, var(--primary-glow) 0%, transparent 55%)'
+                        background: 'radial-gradient(ellipse at 70% 50%, rgba(200,132,26,0.20) 0%, transparent 55%)'
                     }} />
                     <div style={{ position: 'relative', zIndex: 1 }}>
                         <img src={logoImg} alt="Cervify" style={{
@@ -453,7 +451,7 @@ export default function LandingPage() {
                             Ready to Transform<br /><em>Academic Certification?</em>
                         </h2>
                         <p style={{
-                            color: 'rgba(255,255,255,0.9)', fontSize: 17,
+                            color: 'rgba(226,237,230,0.72)', fontSize: 17,
                             maxWidth: 480, margin: '0 auto 32px', lineHeight: 1.75
                         }}>
                             Join hundreds of institutions already using Cervify to honour student achievement with dignity and precision.
@@ -463,10 +461,10 @@ export default function LandingPage() {
                                 onClick={() => setCurrentView('login')}
                                 style={{
                                     display: 'inline-flex', alignItems: 'center', gap: 8,
-                                    background: 'var(--accent)', color: 'white', fontWeight: 700,
+                                    background: '#C8841A', color: 'white', fontWeight: 700,
                                     fontSize: 15, padding: '14px 30px', borderRadius: 12,
                                     border: 'none', cursor: 'pointer',
-                                    boxShadow: 'var(--shadow-md)',
+                                    boxShadow: '0 4px 20px rgba(200,132,26,0.4)',
                                     fontFamily: 'var(--font-body)', transition: 'all 0.2s'
                                 }}
                                 onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}

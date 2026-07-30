@@ -1,62 +1,64 @@
 /**
  * @file api.js
  * @description Centralized API & Client Store integration for Cervify.
- * Intercepts calls and routes seamlessly to mockDataStore when running in client-side / Vercel mode.
+ * Operates client-side with zero backend dependencies, supporting admin self-registration and staff management.
  */
 
 import { mockStore } from './mockDataStore';
 
 export const authApi = {
     login: async (credentials) => {
-        let role = credentials.role || 'coordinator';
-        if (credentials.username.includes('admin')) role = 'admin';
-        if (credentials.username.includes('principal')) role = 'principal';
+        const username = (credentials.username || '').trim();
+        const password = (credentials.password || '').trim();
+        const selectedRole = credentials.role || 'coordinator';
 
-        const nameMap = {
-            admin: 'Dr. Vikramaditya Sen (System Admin)',
-            coordinator: 'Prof. Rajesh Sharma (Coordinator)',
-            principal: 'Dr. Ananya Roy (Principal)'
-        };
+        const matchedStaff = mockStore.findStaffByUsername(username);
 
-        const deptMap = {
-            admin: 'Academic Governance Board',
-            coordinator: 'Computer Science & Engineering',
-            principal: 'Office of the Principal'
-        };
+        if (!matchedStaff) {
+            // Fallback for default role logins if matching selected role
+            if (username.includes('admin') || selectedRole === 'admin') {
+                return {
+                    token: `cervify_token_admin_${Date.now()}`,
+                    user: { id: 'admin_1', username: 'admin', name: 'System Administrator', role: 'admin', department: 'Governance Board' }
+                };
+            }
+            if (username.includes('principal') || selectedRole === 'principal') {
+                return {
+                    token: `cervify_token_principal_${Date.now()}`,
+                    user: { id: 'principal_1', username: 'principal', name: 'Dr. Ananya Roy (Principal)', role: 'principal', department: 'Office of the Principal' }
+                };
+            }
+            return {
+                token: `cervify_token_coord_${Date.now()}`,
+                user: { id: 'coord_1', username: 'coordinator', name: 'Event Coordinator', role: 'coordinator', department: 'Computer Science' }
+            };
+        }
 
-        const user = {
-            id: role === 'admin' ? 3 : role === 'principal' ? 2 : 1,
-            username: credentials.username || `${role}@cervify.edu`,
-            name: nameMap[role] || 'Institutional Staff',
-            role: role,
-            email: credentials.username || `${role}@cervify.edu`,
-            department: deptMap[role] || 'General'
-        };
-
+        // Validate matched user role
         return {
-            token: `cervify_jwt_mock_token_${role}_${Date.now()}`,
-            user
+            token: `cervify_token_${matchedStaff.role}_${Date.now()}`,
+            user: {
+                id: matchedStaff.id,
+                username: matchedStaff.username,
+                name: matchedStaff.name,
+                role: matchedStaff.role,
+                department: matchedStaff.department || 'General'
+            }
         };
     },
 
-    googleLogin: async (googleToken) => {
-        let role = 'coordinator';
-        if (googleToken.includes('principal')) role = 'principal';
-        if (googleToken.includes('admin')) role = 'admin';
-
-        return authApi.login({ username: `${role}@cervify.edu`, role });
+    registerAdmin: async (adminData) => {
+        const newAdmin = mockStore.registerAdmin(adminData);
+        return {
+            token: `cervify_token_admin_${Date.now()}`,
+            user: newAdmin
+        };
     }
 };
 
 export const masterApi = {
     getDepartments: async () => mockStore.getDepartments(),
     addDepartment: async (token, body) => mockStore.addDepartment(body),
-    delDepartment: async () => true,
-
-    getAgencies: async () => [
-        { id: 1, name: 'National Board of Accreditation (NBA)' },
-        { id: 2, name: 'AICTE Quality Improvement Cell' }
-    ],
 
     getCategories: async () => mockStore.getLabels(),
     addCategory: async (token, body) => mockStore.addLabel(body),
@@ -64,17 +66,13 @@ export const masterApi = {
     getStudents: async () => mockStore.getStudents(),
     addStudent: async (token, body) => mockStore.addStudent(body),
     delStudent: async (token, id) => mockStore.deleteStudent(id),
+    clearStudents: async () => mockStore.clearAllStudents(),
     bulkImport: async (token, list) => mockStore.bulkImportStudents(list),
 
     getStaff: async () => mockStore.getStaff(),
-    addStaff: async (token, body) => mockStore.addStaff(body),
-    delStaff: async (token, id) => mockStore.deleteStaff(id),
-
-    getRoles: async () => [
-        { id: 'admin', name: 'System Admin' },
-        { id: 'coordinator', name: 'Event Coordinator' },
-        { id: 'principal', name: 'Principal / Signer' }
-    ]
+    addStaff: async (token, body) => mockStore.createStaffAccount(body),
+    resetStaffCredentials: async (token, id, newUsername, newPassword) => mockStore.resetStaffCredentials(id, newUsername, newPassword),
+    delStaff: async (token, id) => mockStore.deleteStaffAccount(id)
 };
 
 export const activityApi = {
@@ -105,7 +103,7 @@ export const reportApi = {
         const students = mockStore.getStudents();
         const activities = mockStore.getActivities();
         return {
-            totalCertificatesIssued: students.length * 2 + 12,
+            totalCertificatesIssued: students.length,
             pendingApprovals: activities.filter(a => a.status === 'PENDING_APPROVAL').length,
             totalStudents: students.length,
             approvedBatches: activities.filter(a => a.status === 'APPROVED').length,

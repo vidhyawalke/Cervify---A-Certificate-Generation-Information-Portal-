@@ -1,8 +1,7 @@
 /**
  * @file StudentsPage.jsx
- * @description Advanced Excel Student Directory & Award Label Tagging Studio for Cervify.
- * Includes Excel file parsing (.xlsx, .csv), dynamic award label tagging (1st Winner, Runner Up, Participant, Custom),
- * and label management.
+ * @description Excel Student Directory & Award Label Tagging Studio for Event Coordinators.
+ * Enables coordinators to upload Excel rosters, map custom award labels, and filter students.
  */
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -30,7 +29,6 @@ export default function StudentsPage() {
     const [excelData, setExcelData] = useState([]);
     const [excelFileName, setExcelFileName] = useState('');
 
-    // Single student form
     const [form, setForm] = useState({
         name: '',
         rollNo: '',
@@ -39,7 +37,6 @@ export default function StudentsPage() {
         awardLabel: 'Certificate of Participation'
     });
 
-    // Custom label form
     const [customLabelForm, setCustomLabelForm] = useState({
         title: '',
         badge: '🎖️',
@@ -52,7 +49,6 @@ export default function StudentsPage() {
 
     const notify = (msg) => { setStatusMsg(msg); setTimeout(() => setStatusMsg(''), 4000); };
 
-    // ── Excel File Reader ─────────────────────────────────────────────────────
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -95,7 +91,6 @@ export default function StudentsPage() {
         }
     };
 
-    // ── Label Tagging ─────────────────────────────────────────────────────────
     const handleAssignLabelToSelected = (labelTitle) => {
         if (selectedStudentIds.length === 0) {
             notify('Please select at least one student from the table.');
@@ -122,7 +117,7 @@ export default function StudentsPage() {
         const newLbl = mockStore.addLabel(customLabelForm);
         setShowLabelModal(false);
         setCustomLabelForm({ title: '', badge: '🎖️', color: '#1E3A8A', description: '' });
-        notify(`New custom award label "${newLbl.title}" created!`);
+        notify(`Custom award label "${newLbl.title}" created!`);
     };
 
     const handleAddSingleStudent = async (e) => {
@@ -145,6 +140,14 @@ export default function StudentsPage() {
         notify('Student record deleted.');
     };
 
+    const handleClearAll = async () => {
+        if (!window.confirm('Clear all student directory records?')) return;
+        await masterApi.clearStudents();
+        await refreshData();
+        setSelectedStudentIds([]);
+        notify('Student directory cleared.');
+    };
+
     const toggleSelectAll = (e) => {
         if (e.target.checked) {
             setSelectedStudentIds(filteredStudents.map(s => s.id || s.stud_id));
@@ -159,7 +162,6 @@ export default function StudentsPage() {
         );
     };
 
-    // Filter students
     const filteredStudents = useMemo(() => {
         let list = students || [];
         if (selectedCategoryFilter !== 'ALL') {
@@ -179,7 +181,7 @@ export default function StudentsPage() {
         <div className="page-content">
             {statusMsg && <div className="alert-banner alert-success">{statusMsg}</div>}
 
-            {/* ── Page Header ───────────────────────────────────────────── */}
+            {/* Header */}
             <div className="page-header" style={{ alignItems: 'flex-start' }}>
                 <div>
                     <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -187,12 +189,11 @@ export default function StudentsPage() {
                         Excel Student Directory & Award Label Studio
                     </h2>
                     <p className="page-subtitle">
-                        Upload Excel rosters, map custom certificate award labels (1st Winner, Runner Up, Appreciation, etc.), and prepare batch certificates.
+                        Upload Excel rosters, tag student categories (1st Winner, Runner Up, Appreciation), and prepare batch certificates.
                     </p>
                 </div>
 
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {/* Excel File Input */}
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -201,9 +202,9 @@ export default function StudentsPage() {
                         style={{ display: 'none' }}
                     />
                     <button
-                        className="btn btn-secondary"
+                        className="btn btn-primary"
                         onClick={() => fileInputRef.current?.click()}
-                        style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(16, 185, 129, 0.1)', color: '#10B981', borderColor: 'rgba(16, 185, 129, 0.3)' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 8 }}
                     >
                         <Upload size={16} /> Import Excel / CSV
                     </button>
@@ -214,13 +215,18 @@ export default function StudentsPage() {
                     >
                         <Sparkles size={16} /> Create Custom Label
                     </button>
-                    <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+                    <button className="btn btn-secondary" onClick={() => setShowAddModal(true)}>
                         <Plus size={16} /> Add Single Student
                     </button>
+                    {students.length > 0 && (
+                        <button className="btn btn-danger" onClick={handleClearAll} style={{ fontSize: 12 }}>
+                            Clear Directory
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* ── Quick Award Label Tagging Toolbar ───────────────────────────────── */}
+            {/* Quick Award Label Tagging Toolbar */}
             <div style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border)',
@@ -260,7 +266,7 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            {/* ── Search & Filter Controls ─────────────────────────────────── */}
+            {/* Controls */}
             <div style={{ display: 'flex', gap: 16, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div className="search-input-wrapper" style={{ width: 300, flex: 1 }}>
                     <Search className="search-icon-inside" size={16} />
@@ -290,34 +296,41 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            {/* ── Students Table ───────────────────────────────────────────── */}
-            <div className="table-responsive">
-                <table className="table">
-                    <thead>
-                        <tr>
-                            <th style={{ width: 40 }}>
-                                <input
-                                    type="checkbox"
-                                    onChange={toggleSelectAll}
-                                    checked={selectedStudentIds.length > 0 && selectedStudentIds.length === filteredStudents.length}
-                                />
-                            </th>
-                            <th>Student Name</th>
-                            <th>Roll / Reg No.</th>
-                            <th>Department</th>
-                            <th>Assigned Award Label / Category</th>
-                            <th style={{ textAlign: 'right' }}>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredStudents.length === 0 ? (
+            {/* Students Table or Clean Empty State */}
+            {filteredStudents.length === 0 ? (
+                <div className="card" style={{ padding: 48, textAlign: 'center' }}>
+                    <FileSpreadsheet size={48} color="var(--primary)" style={{ marginBottom: 16, opacity: 0.8 }} />
+                    <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+                        No Students in Directory
+                    </h3>
+                    <p style={{ fontSize: 14, color: 'var(--text-light)', maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6 }}>
+                        Upload your event Excel file (.xlsx, .xls, .csv) to automatically fetch student rosters and map award labels.
+                    </p>
+                    <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Upload size={16} /> Import Excel Student File
+                    </button>
+                </div>
+            ) : (
+                <div className="table-responsive">
+                    <table className="table">
+                        <thead>
                             <tr>
-                                <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--text-light)' }}>
-                                    No students found matching filters. Upload an Excel sheet above to fetch students.
-                                </td>
+                                <th style={{ width: 40 }}>
+                                    <input
+                                        type="checkbox"
+                                        onChange={toggleSelectAll}
+                                        checked={selectedStudentIds.length > 0 && selectedStudentIds.length === filteredStudents.length}
+                                    />
+                                </th>
+                                <th>Student Name</th>
+                                <th>Roll / Reg No.</th>
+                                <th>Department</th>
+                                <th>Assigned Award Label / Category</th>
+                                <th style={{ textAlign: 'right' }}>Actions</th>
                             </tr>
-                        ) : (
-                            filteredStudents.map((st) => {
+                        </thead>
+                        <tbody>
+                            {filteredStudents.map((st) => {
                                 const id = st.id || st.stud_id;
                                 const isSelected = selectedStudentIds.includes(id);
                                 const labelText = st.awardLabel || st.category || 'Participant';
@@ -376,12 +389,13 @@ export default function StudentsPage() {
                                     </tr>
                                 );
                             })
-                        )}
-                    </tbody>
-                </table>
-            </div>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            )}
 
-            {/* ── Excel Import Preview Modal ────────────────────────────────────── */}
+            {/* Excel Import Preview Modal */}
             <Modal title={`Import Excel Data (${excelFileName})`} isOpen={showExcelModal} onClose={() => setShowExcelModal(false)}>
                 <p style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 16 }}>
                     Parsed <strong style={{ color: 'var(--primary)' }}>{excelData.length} student rows</strong>. Review columns before importing:
@@ -420,13 +434,9 @@ export default function StudentsPage() {
                 </div>
             </Modal>
 
-            {/* ── Create Custom Label Modal ────────────────────────────────────── */}
+            {/* Create Custom Label Modal */}
             <Modal title="Create Custom Certificate Award Label" isOpen={showLabelModal} onClose={() => setShowLabelModal(false)}>
                 <form onSubmit={handleCreateCustomLabel}>
-                    <p style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 16 }}>
-                        Need a special certificate label (e.g. "Thank You Speaker Session", "Volleyball MVP")? Create it here directly!
-                    </p>
-
                     <div className="form-group">
                         <label className="form-label">Award Label Title</label>
                         <input
@@ -441,7 +451,7 @@ export default function StudentsPage() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                         <div className="form-group">
-                            <label className="form-label">Badge Icon Emoji</label>
+                            <label className="form-label">Badge Emoji</label>
                             <input
                                 type="text"
                                 className="form-control"
@@ -461,17 +471,6 @@ export default function StudentsPage() {
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label className="form-label">Short Description</label>
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="e.g. Awarded for presenting a guest lecture"
-                            value={customLabelForm.description}
-                            onChange={e => setCustomLabelForm({ ...customLabelForm, description: e.target.value })}
-                        />
-                    </div>
-
                     <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
                         <button type="button" className="btn btn-secondary" onClick={() => setShowLabelModal(false)}>Cancel</button>
                         <button type="submit" className="btn btn-primary">Save Label</button>
@@ -479,7 +478,7 @@ export default function StudentsPage() {
                 </form>
             </Modal>
 
-            {/* ── Add Single Student Modal ────────────────────────────────────── */}
+            {/* Add Single Student Modal */}
             <Modal title="Add Single Student" isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
                 <form onSubmit={handleAddSingleStudent}>
                     <div className="form-group">
@@ -487,7 +486,7 @@ export default function StudentsPage() {
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="e.g. Ananya Roy"
+                            placeholder="e.g. Sameer Joshi"
                             value={form.name}
                             onChange={e => setForm({ ...form, name: e.target.value })}
                             required
@@ -499,20 +498,10 @@ export default function StudentsPage() {
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="e.g. CS-2024-099"
+                            placeholder="e.g. CS-2026-099"
                             value={form.rollNo}
                             onChange={e => setForm({ ...form, rollNo: e.target.value })}
                             required
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Department</label>
-                        <input
-                            type="text"
-                            className="form-control"
-                            value={form.department}
-                            onChange={e => setForm({ ...form, department: e.target.value })}
                         />
                     </div>
 

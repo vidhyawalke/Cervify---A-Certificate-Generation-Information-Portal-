@@ -1,7 +1,7 @@
 /**
  * @file Sidebar.jsx
  * @description Executive academic sidebar navigation for Cervify.
- * Filters navigation tabs cleanly based on user role (Admin vs Coordinator vs Principal).
+ * Enforces strict role separation for System Admin, Event Coordinator, and Principal.
  */
 
 import React from 'react';
@@ -26,9 +26,9 @@ function SidebarItem({ icon, label, tabKey, badge }) {
         >
             <span style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                width: 32, height: 32,
+                width: 30, height: 30,
                 borderRadius: 8,
-                background: isActive ? 'rgba(200, 132, 26, 0.18)' : 'transparent',
+                background: isActive ? 'rgba(16, 185, 129, 0.18)' : 'transparent',
                 transition: 'all 0.2s',
                 flexShrink: 0
             }}>
@@ -37,7 +37,7 @@ function SidebarItem({ icon, label, tabKey, badge }) {
             <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
             {badge && (
                 <span style={{
-                    background: '#C8841A',
+                    background: '#10B981',
                     color: 'white',
                     fontSize: 10,
                     fontWeight: 700,
@@ -57,7 +57,7 @@ function SidebarSection({ children }) {
             fontSize: 10,
             fontWeight: 700,
             letterSpacing: '1.5px',
-            color: 'rgba(226, 237, 230, 0.45)',
+            color: 'rgba(255, 255, 255, 0.4)',
             textTransform: 'uppercase',
             fontFamily: 'var(--font-body)'
         }}>
@@ -84,7 +84,7 @@ export default function Sidebar() {
                     filter: 'brightness(0) invert(1)',
                     flexShrink: 0
                 }} />
-                <span style={{ fontWeight: 800, letterSpacing: 1.5 }}>CERVIFY</span>
+                <span style={{ fontWeight: 800, letterSpacing: 1.5, fontSize: 18, color: 'white' }}>CERVIFY</span>
             </div>
 
             {/* Navigation Menu */}
@@ -94,19 +94,19 @@ export default function Sidebar() {
                     <SidebarItem icon={<BarChart2 size={16} />} label="Dashboard" tabKey="dashboard" />
                 </ul>
 
-                {/* System Admin Access */}
+                {/* System Admin STRICT Access */}
                 {userRole === 'admin' && (
                     <>
-                        <SidebarSection>Admin Governance</SidebarSection>
+                        <SidebarSection>System Governance</SidebarSection>
                         <ul className="sidebar-menu" role="menu">
-                            <SidebarItem icon={<UserCheck size={16} />} label="Staff & Role Directory" tabKey="staff" />
-                            <SidebarItem icon={<Settings size={16} />} label="Depts & Agencies" tabKey="departments" />
+                            <SidebarItem icon={<UserCheck size={16} />} label="Staff Accounts & Logins" tabKey="staff" />
+                            <SidebarItem icon={<Settings size={16} />} label="Departments & Agencies" tabKey="departments" />
                         </ul>
                     </>
                 )}
 
-                {/* Event Coordinator Access */}
-                {(userRole === 'coordinator' || userRole === 'admin') && (
+                {/* Event Coordinator STRICT Access */}
+                {userRole === 'coordinator' && (
                     <>
                         <SidebarSection>Student & Excel Data</SidebarSection>
                         <ul className="sidebar-menu" role="menu">
@@ -117,15 +117,15 @@ export default function Sidebar() {
                         <ul className="sidebar-menu" role="menu">
                             <SidebarItem icon={<Sparkles size={16} />} label="Template Studio" tabKey="designer" />
                             <SidebarItem icon={<Award size={16} />} label="Issue & Export ZIP" tabKey="generate_certs" />
-                            <SidebarItem icon={<FileText size={16} />} label="Event Activities Log" tabKey="activities" />
+                            <SidebarItem icon={<FileText size={16} />} label="Event Activity Log" tabKey="activities" />
                         </ul>
                     </>
                 )}
 
-                {/* Principal Signer Access */}
-                {(userRole === 'principal' || userRole === 'admin') && (
+                {/* Principal STRICT Access */}
+                {userRole === 'principal' && (
                     <>
-                        <SidebarSection>Principal Sign-Off</SidebarSection>
+                        <SidebarSection>Principal Approvals</SidebarSection>
                         <ul className="sidebar-menu" role="menu">
                             <SidebarItem icon={<CheckSquare size={16} />} label="Approvals Queue" tabKey="validate" />
                         </ul>
@@ -139,10 +139,10 @@ export default function Sidebar() {
                     <div className="user-avatar" style={{ width: 34, height: 34, fontSize: 13, flexShrink: 0 }}>{initials}</div>
                     <div className="user-details" style={{ overflow: 'hidden' }}>
                         <span className="user-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {user?.name || 'Institutional Staff'}
+                            {user?.name || 'Institutional User'}
                         </span>
-                        <span className="user-role" style={{ textTransform: 'capitalize' }}>
-                            {userRole} Account
+                        <span className="user-role" style={{ textTransform: 'capitalize', color: '#10B981', fontWeight: 700 }}>
+                            {userRole.toUpperCase()}
                         </span>
                     </div>
                 </div>
@@ -155,7 +155,7 @@ export default function Sidebar() {
                         padding: '8px 14px',
                         background: 'rgba(255,255,255,0.06)',
                         borderColor: 'rgba(255,255,255,0.12)',
-                        color: 'rgba(226, 237, 230, 0.7)',
+                        color: 'rgba(255, 255, 255, 0.7)',
                         marginTop: 8
                     }}
                     onClick={logout}

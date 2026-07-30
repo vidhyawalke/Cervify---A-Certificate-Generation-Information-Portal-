@@ -1,11 +1,10 @@
 /**
  * @file App.jsx
- * @description Root application router for Cervify.
- * Integrates InactivityLock security guard, role-based views, and theme switching.
+ * @description Root application view router for Cervify.
+ * Clean responsive layout with role-based navigation and background inactivity security guard.
  */
 
 import React from 'react';
-import { Bell, Sun, Moon, ShieldCheck } from 'lucide-react';
 import { useAppContext } from './context/AppContext';
 
 import LoginPage from './pages/LoginPage';
@@ -27,7 +26,7 @@ const PAGE_TITLES = {
     dashboard: 'Analytics Dashboard',
     departments: 'Depts & Agencies',
     students: 'Excel Student Directory',
-    staff: 'Staff Accounts',
+    staff: 'Institutional Accounts & Role Management',
     visitors: 'Visitor Log',
     activities: 'Event Activity Log',
     generate_certs: 'Issue & Export Certificates (ZIP)',
@@ -51,7 +50,7 @@ function ActivePage({ activeTab }) {
 }
 
 export default function App() {
-    const { currentView, activeTab, theme, toggleTheme, user } = useAppContext();
+    const { currentView, activeTab, user } = useAppContext();
 
     if (currentView === 'landing') return <LandingPage />;
     if (currentView === 'login') return <LoginPage />;
@@ -62,40 +61,20 @@ export default function App() {
             <div className="app-shell">
                 <Sidebar />
                 <div className="main-content">
+                    {/* Clean Header Bar */}
                     <header className="top-header" role="banner">
-                        <div className="header-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div className="header-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
                             <span style={{ color: 'var(--text-light)', fontWeight: 500 }}>Cervify Portal</span>
                             <span style={{ color: 'var(--border-strong)' }}>›</span>
-                            <span style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                                 {PAGE_TITLES[activeTab] || activeTab}
-                            </span>
-                            <span style={{
-                                marginLeft: 12,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                background: 'rgba(16, 185, 129, 0.1)',
-                                color: '#10B981',
-                                padding: '2px 8px',
-                                borderRadius: 12,
-                                fontSize: 11,
-                                fontWeight: 700
-                            }}>
-                                <ShieldCheck size={12} /> Bank Security (15m AFK)
                             </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 600 }}>
-                                Role: <span style={{ color: 'var(--primary)', textTransform: 'capitalize' }}>{user?.role || 'User'}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                            <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                Account: <span style={{ color: 'var(--primary)', fontWeight: 700, textTransform: 'capitalize' }}>{user?.name || user?.role || 'User'}</span>
                             </div>
-                            <button
-                                className="theme-switch"
-                                onClick={toggleTheme}
-                                title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-                            >
-                                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-                            </button>
                         </div>
                     </header>
 

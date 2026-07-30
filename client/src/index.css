@@ -1234,13 +1234,70 @@ select.form-control {
   max-width: 80px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
-  .main-content { margin-left: 0; }
-  .page-content { padding: 20px 16px; }
-  .portal-card, .verify-box { padding: 28px 20px; }
-  .role-selectors { grid-template-columns: repeat(3, 1fr); }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .designer-container { grid-template-columns: 1fr; }
+/* Responsive & Table Overflow Layout Fixes */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 20px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
 }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 680px;
+  font-size: 13px;
+}
+
+.table th {
+  white-space: nowrap;
+  padding: 12px 14px;
+  text-align: left;
+  background: var(--bg-surface-2);
+  color: var(--text-light);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+@media (max-width: 992px) {
+  :root {
+    --sidebar-width: 230px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    flex-direction: column;
+  }
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    transform: none !important;
+  }
+  .main-content {
+    margin-left: 0 !important;
+  }
+  .page-content {
+    padding: 20px 16px;
+  }
+  .portal-card, .verify-box {
+    padding: 28px 20px;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+

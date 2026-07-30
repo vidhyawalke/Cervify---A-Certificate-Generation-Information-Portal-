@@ -1,13 +1,13 @@
 /**
  * @file Sidebar.jsx
- * @description Premium academic sidebar navigation for Cervify.
- * Filters navigation items cleanly based on user role (Coordinator vs Principal vs Admin).
+ * @description Executive academic sidebar navigation for Cervify.
+ * Filters navigation tabs cleanly based on user role (Admin vs Coordinator vs Principal).
  */
 
 import React from 'react';
 import {
     Award, BarChart2, Settings, Users, Shield,
-    FileText, CheckSquare, LogOut, Compass, Sparkles, FolderArchive
+    FileText, CheckSquare, LogOut, Sparkles, UserCheck
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import logoImg from '../../assets/logo.png';
@@ -34,7 +34,7 @@ function SidebarItem({ icon, label, tabKey, badge }) {
             }}>
                 {icon}
             </span>
-            <span style={{ flex: 1 }}>{label}</span>
+            <span style={{ flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
             {badge && (
                 <span style={{
                     background: '#C8841A',
@@ -80,11 +80,11 @@ export default function Sidebar() {
             {/* Brand Logo */}
             <div className="sidebar-logo">
                 <img src={logoImg} alt="Cervify Logo" style={{
-                    width: 36, height: 36, objectFit: 'contain',
+                    width: 34, height: 34, objectFit: 'contain',
                     filter: 'brightness(0) invert(1)',
                     flexShrink: 0
                 }} />
-                <span>CERVIFY</span>
+                <span style={{ fontWeight: 800, letterSpacing: 1.5 }}>CERVIFY</span>
             </div>
 
             {/* Navigation Menu */}
@@ -93,6 +93,17 @@ export default function Sidebar() {
                 <ul className="sidebar-menu" role="menu">
                     <SidebarItem icon={<BarChart2 size={16} />} label="Dashboard" tabKey="dashboard" />
                 </ul>
+
+                {/* System Admin Access */}
+                {userRole === 'admin' && (
+                    <>
+                        <SidebarSection>Admin Governance</SidebarSection>
+                        <ul className="sidebar-menu" role="menu">
+                            <SidebarItem icon={<UserCheck size={16} />} label="Staff & Role Directory" tabKey="staff" />
+                            <SidebarItem icon={<Settings size={16} />} label="Depts & Agencies" tabKey="departments" />
+                        </ul>
+                    </>
+                )}
 
                 {/* Event Coordinator Access */}
                 {(userRole === 'coordinator' || userRole === 'admin') && (
@@ -114,7 +125,7 @@ export default function Sidebar() {
                 {/* Principal Signer Access */}
                 {(userRole === 'principal' || userRole === 'admin') && (
                     <>
-                        <SidebarSection>Principal Approvals</SidebarSection>
+                        <SidebarSection>Principal Sign-Off</SidebarSection>
                         <ul className="sidebar-menu" role="menu">
                             <SidebarItem icon={<CheckSquare size={16} />} label="Approvals Queue" tabKey="validate" />
                         </ul>
@@ -124,11 +135,15 @@ export default function Sidebar() {
 
             {/* User Footer */}
             <div className="sidebar-footer">
-                <div className="user-info-card">
-                    <div className="user-avatar">{initials}</div>
-                    <div className="user-details">
-                        <span className="user-name">{user?.name || 'Institutional User'}</span>
-                        <span className="user-role" style={{ textTransform: 'capitalize' }}>{userRole} Account</span>
+                <div className="user-info-card" style={{ gap: 10 }}>
+                    <div className="user-avatar" style={{ width: 34, height: 34, fontSize: 13, flexShrink: 0 }}>{initials}</div>
+                    <div className="user-details" style={{ overflow: 'hidden' }}>
+                        <span className="user-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {user?.name || 'Institutional Staff'}
+                        </span>
+                        <span className="user-role" style={{ textTransform: 'capitalize' }}>
+                            {userRole} Account
+                        </span>
                     </div>
                 </div>
                 <button
@@ -140,7 +155,8 @@ export default function Sidebar() {
                         padding: '8px 14px',
                         background: 'rgba(255,255,255,0.06)',
                         borderColor: 'rgba(255,255,255,0.12)',
-                        color: 'rgba(226, 237, 230, 0.7)'
+                        color: 'rgba(226, 237, 230, 0.7)',
+                        marginTop: 8
                     }}
                     onClick={logout}
                 >

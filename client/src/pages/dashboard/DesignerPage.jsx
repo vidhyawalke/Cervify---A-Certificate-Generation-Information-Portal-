@@ -1,18 +1,18 @@
 /**
  * @file DesignerPage.jsx
- * @description In-Browser Visual Certificate Studio & Designer for Cervify.
- * Enables coordinators to upload custom background images (.png, .jpg), select document dimensions (A4, Letter, Legal, HD),
- * customize fonts, colors, titles, and live preview student certificates without external graphic tools.
+ * @description In-Browser Visual Certificate Studio & Saved Templates Gallery for Cervify.
+ * Enables coordinators to design custom templates, save them to an institutional gallery, and load/apply them to events.
  */
 
 import React, { useState, useRef } from 'react';
-import { Sparkles, Upload, Download, Save, CheckCircle2, Image as ImageIcon, Layout, Type, Palette, QrCode, ShieldCheck } from 'lucide-react';
+import { Sparkles, Download, Save, Image as ImageIcon, Layout, Type, QrCode, ShieldCheck, FolderHeart, Trash2, CheckCircle2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useAppContext } from '../../context/AppContext';
 import { activityApi } from '../../api/api';
 import { mockStore } from '../../api/mockDataStore';
+import Modal from '../../components/ui/Modal';
 
 const PAGE_SIZES = [
     { key: 'A4_LANDSCAPE', label: 'A4 Landscape (297 x 210 mm)', widthRatio: '1.414/1' },
@@ -36,6 +36,7 @@ export default function DesignerPage() {
     const [selectedActivityId, setSelectedActivityId] = useState('201');
     const [statusMsg, setStatusMsg] = useState('');
     const [customBgUrl, setCustomBgUrl] = useState('');
+    const [showGalleryModal, setShowGalleryModal] = useState(false);
 
     const sampleStudents = mockStore.getStudents();
     const [previewIndex, setPreviewIndex] = useState(0);
@@ -59,34 +60,66 @@ export default function DesignerPage() {
         sig2Title: 'Dr. Ananya Roy (Principal)'
     });
 
+    const savedTemplates = mockStore.getSavedTemplates();
+
     const notify = (msg) => { setStatusMsg(msg); setTimeout(() => setStatusMsg(''), 4000); };
 
-    // Image Upload Handler for PNG/JPG Background
     const handleBgImageUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
-        if (!file.type.match('image.*')) {
-            notify('Please upload a valid image file (.png, .jpg, .jpeg)');
-            return;
-        }
-
         const reader = new FileReader();
         reader.onload = (evt) => {
             setCustomBgUrl(evt.target.result);
-            notify('Custom background image uploaded successfully!');
+            notify('Custom background image uploaded!');
         };
         reader.readAsDataURL(file);
     };
 
-    const handleSaveTemplate = async () => {
-        if (!selectedActivityId) {
-            notify('Please select an activity to link this certificate design.');
-            return;
-        }
+    // Save Template to Institutional Gallery
+    const handleSaveToGallery = async () => {
+        const titleName = prompt('Enter a name for this custom template to save in your gallery:', config.titleText);
+        if (!titleName) return;
+
+        await activityApi.saveTemplateToGallery(token, {
+            ...config,
+            title: titleName,
+            customBgUrl
+        });
+
         await activityApi.saveCertDesign(token, selectedActivityId, { ...config, customBgUrl });
         await refreshData();
-        notify('Certificate template saved and linked to activity!');
+        notify(`Template "${titleName}" saved to gallery and linked to event!`);
+    };
+
+    // Load template from gallery into studio
+    const handleLoadTemplate = (tmpl) => {
+        setConfig({
+            pageSize: tmpl.pageSize || 'A4_LANDSCAPE',
+            bgPreset: tmpl.bgPreset || 'gold_luxury',
+            titleText: tmpl.titleText || 'CERTIFICATE OF EXCELLENCE',
+            subtitleText: tmpl.subtitleText || 'This is proudly presented to',
+            reasonText: tmpl.reasonText || 'for outstanding performance.',
+            primaryFont: tmpl.primaryFont || 'Cinzel, Georgia, serif',
+            accentColor: tmpl.accentColor || '#1E3A8A',
+            titleColor: tmpl.titleColor || '#D4AF37',
+            nameColor: tmpl.nameColor || '#0F172A',
+            nameFontSize: tmpl.nameFontSize || 32,
+            showQr: tmpl.showQr !== false,
+            showSeal: tmpl.showSeal !== false,
+            showSignature: tmpl.showSignature !== false,
+            sig1Title: tmpl.sig1Title || 'Event Coordinator',
+            sig2Title: tmpl.sig2Title || 'Dr. Ananya Roy (Principal)'
+        });
+        if (tmpl.customBgUrl) setCustomBgUrl(tmpl.customBgUrl);
+        setShowGalleryModal(false);
+        notify(`Loaded saved template "${tmpl.title}" into Visual Studio!`);
+    };
+
+    const handleDeleteSavedTemplate = (id) => {
+        mockStore.deleteTemplate(id);
+        refreshData();
+        notify('Template removed from gallery.');
     };
 
     const handleDownloadSinglePdf = async () => {
@@ -104,7 +137,7 @@ export default function DesignerPage() {
             const pdfHeight = pdf.internal.pageSize.getHeight();
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
             pdf.save(`${activeStudent.name.replace(/\s+/g, '_')}_Certificate.pdf`);
-            notify('Preview Certificate PDF downloaded!');
+            notify('Sample PDF downloaded!');
         } catch (err) {
             notify('PDF export error: ' + err.message);
         }
@@ -121,19 +154,22 @@ export default function DesignerPage() {
                 <div>
                     <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Sparkles size={26} color="var(--primary)" />
-                        In-Browser Certificate Visual Studio
+                        Certificate Studio & Saved Templates Gallery
                     </h2>
                     <p className="page-subtitle">
-                        Design custom certificates without Photoshop. Upload custom PNG backgrounds, pick page sizes (A4, Letter, Legal), adjust typography, and live preview per student label.
+                        Design custom certificates without Photoshop, manage your library of saved templates, and link them to event activities.
                     </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button className="btn btn-secondary" onClick={() => setShowGalleryModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FolderHeart size={16} /> Saved Templates ({savedTemplates.length})
+                    </button>
                     <button className="btn btn-secondary" onClick={handleDownloadSinglePdf} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Download size={16} /> Download Sample PDF
                     </button>
-                    <button className="btn btn-primary" onClick={handleSaveTemplate} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Save size={16} /> Save & Apply Template
+                    <button className="btn btn-primary" onClick={handleSaveToGallery} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Save size={16} /> Save Template to Library
                     </button>
                 </div>
             </div>
@@ -144,7 +180,7 @@ export default function DesignerPage() {
                     {/* Activity Selector */}
                     <div className="card" style={{ padding: 20 }}>
                         <label className="form-label" style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <Layout size={16} color="var(--primary)" /> Link to Event Activity
+                            <Layout size={16} color="var(--primary)" /> Link Design to Event Activity
                         </label>
                         <select
                             className="form-control"
@@ -157,7 +193,7 @@ export default function DesignerPage() {
                         </select>
                     </div>
 
-                    {/* Page Size & Background Image */}
+                    {/* Canvas Dimensions & Background */}
                     <div className="card" style={{ padding: 20 }}>
                         <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                             <ImageIcon size={16} color="var(--primary)" /> Canvas Dimensions & Background
@@ -177,7 +213,7 @@ export default function DesignerPage() {
                         </div>
 
                         <div className="form-group" style={{ marginBottom: 14 }}>
-                            <label className="form-label">Upload Custom Background (.PNG / .JPG)</label>
+                            <label className="form-label">Upload Custom Background Image (.PNG / .JPG)</label>
                             <input
                                 type="file"
                                 accept="image/png, image/jpeg"
@@ -191,14 +227,14 @@ export default function DesignerPage() {
                                     onClick={() => setCustomBgUrl('')}
                                     style={{ marginTop: 8, fontSize: 11, padding: '4px 8px' }}
                                 >
-                                    Remove Uploaded Image
+                                    Remove Background Image
                                 </button>
                             )}
                         </div>
 
                         {!customBgUrl && (
                             <div className="form-group" style={{ marginBottom: 0 }}>
-                                <label className="form-label">Preset Style Frame</label>
+                                <label className="form-label">Preset Border Frame Style</label>
                                 <select
                                     className="form-control"
                                     value={config.bgPreset}
@@ -265,43 +301,9 @@ export default function DesignerPage() {
                             />
                         </div>
                     </div>
-
-                    {/* Security & Badges */}
-                    <div className="card" style={{ padding: 20 }}>
-                        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <ShieldCheck size={16} color="var(--primary)" /> Toggles & Signature Blocks
-                        </h3>
-
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, marginBottom: 10, cursor: 'pointer' }}>
-                            <input
-                                type="checkbox"
-                                checked={config.showQr}
-                                onChange={e => setConfig({ ...config, showQr: e.target.checked })}
-                            />
-                            Display SHA-256 Verification QR Code
-                        </label>
-
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, marginBottom: 10, cursor: 'pointer' }}>
-                            <input
-                                type="checkbox"
-                                checked={config.showSeal}
-                                onChange={e => setConfig({ ...config, showSeal: e.target.checked })}
-                            />
-                            Display Institutional Gold Medal Badge
-                        </label>
-
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
-                            <input
-                                type="checkbox"
-                                checked={config.showSignature}
-                                onChange={e => setConfig({ ...config, showSignature: e.target.checked })}
-                            />
-                            Display Principal Signature Block
-                        </label>
-                    </div>
                 </div>
 
-                {/* ── Live Certificate Preview Studio Canvas ────────────────────────────────────────── */}
+                {/* ── Live Studio Canvas ────────────────────────────────────────── */}
                 <div>
                     <div style={{
                         display: 'flex',
@@ -339,7 +341,7 @@ export default function DesignerPage() {
                         </div>
                     </div>
 
-                    {/* Canvas Render Box */}
+                    {/* Rendered Canvas Box */}
                     <div
                         ref={certRef}
                         style={{
@@ -359,40 +361,19 @@ export default function DesignerPage() {
                             boxSizing: 'border-box'
                         }}
                     >
-                        {/* Header Branding */}
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{
-                                fontSize: 13,
-                                letterSpacing: 4,
-                                textTransform: 'uppercase',
-                                fontWeight: 700,
-                                opacity: 0.8,
-                                marginBottom: 6
-                            }}>
+                            <div style={{ fontSize: 13, letterSpacing: 4, textTransform: 'uppercase', fontWeight: 700, opacity: 0.8, marginBottom: 6 }}>
                                 National Institute of Academic Excellence
                             </div>
-                            <h1 style={{
-                                fontSize: 30,
-                                fontWeight: 800,
-                                margin: '8px 0',
-                                color: config.titleColor,
-                                letterSpacing: 2,
-                                fontFamily: config.primaryFont
-                            }}>
+                            <h1 style={{ fontSize: 30, fontWeight: 800, margin: '8px 0', color: config.titleColor, letterSpacing: 2, fontFamily: config.primaryFont }}>
                                 {config.titleText}
                             </h1>
-                            <div style={{
-                                width: 120,
-                                height: 3,
-                                background: config.titleColor,
-                                margin: '10px auto 16px'
-                            }} />
+                            <div style={{ width: 120, height: 3, background: config.titleColor, margin: '10px auto 16px' }} />
                             <p style={{ fontSize: 15, fontStyle: 'italic', opacity: 0.85, margin: 0 }}>
                                 {config.subtitleText}
                             </p>
                         </div>
 
-                        {/* Recipient Name & Award Tag */}
                         <div style={{ textAlign: 'center', margin: '24px 0' }}>
                             <div style={{
                                 fontSize: config.nameFontSize,
@@ -422,91 +403,83 @@ export default function DesignerPage() {
                                 </span>
                             </div>
 
-                            <p style={{
-                                fontSize: 13,
-                                maxWidth: 560,
-                                margin: '0 auto',
-                                lineHeight: 1.6,
-                                opacity: 0.9
-                            }}>
+                            <p style={{ fontSize: 13, maxWidth: 560, margin: '0 auto', lineHeight: 1.6, opacity: 0.9 }}>
                                 {config.reasonText}
                             </p>
                         </div>
 
-                        {/* Footer Signatures, QR Code & Gold Medal Badge */}
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'flex-end',
-                            justifyContent: 'space-between',
-                            borderTop: '1px solid rgba(0,0,0,0.1)',
-                            paddingTop: 16
-                        }}>
-                            {/* QR Code */}
+                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', borderTop: '1px solid rgba(0,0,0,0.1)', paddingTop: 16 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                {config.showQr && (
-                                    <div style={{ background: 'white', padding: 6, borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                                        <QRCodeSVG
-                                            value={`https://cervify.edu/verify/CERV-2026-${activeStudent.id || 101}`}
-                                            size={54}
-                                        />
-                                    </div>
-                                )}
+                                <div style={{ background: 'white', padding: 6, borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                                    <QRCodeSVG value={`https://cervify.edu/verify/CERV-2026-${activeStudent.id || 101}`} size={54} />
+                                </div>
                                 <div style={{ fontSize: 10, opacity: 0.7 }}>
                                     <div><strong>Certificate ID:</strong> CERV-2026-{activeStudent.id || 101}</div>
                                     <div><strong>SHA-256 Auth:</strong> Verified Offline</div>
                                 </div>
                             </div>
 
-                            {/* Center Seal */}
-                            {config.showSeal && (
-                                <div style={{
-                                    width: 60,
-                                    height: 60,
-                                    borderRadius: '50%',
-                                    background: 'linear-gradient(135deg, #D4AF37, #AA7C11)',
-                                    color: 'white',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    boxShadow: '0 4px 12px rgba(212, 175, 55, 0.4)',
-                                    fontSize: 9,
-                                    fontWeight: 800,
-                                    textAlign: 'center',
-                                    border: '2px solid white'
-                                }}>
-                                    <span>SEAL OF</span>
-                                    <span>EXCELLENCE</span>
+                            <div style={{ display: 'flex', gap: 32 }}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ height: 28, borderBottom: '1px solid currentColor', width: 110, margin: '0 auto 4px' }} />
+                                    <div style={{ fontSize: 11, fontWeight: 700 }}>{config.sig1Title}</div>
                                 </div>
-                            )}
-
-                            {/* Signatures */}
-                            {config.showSignature && (
-                                <div style={{ display: 'flex', gap: 32 }}>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{ height: 28, borderBottom: '1px solid currentColor', width: 110, margin: '0 auto 4px' }} />
-                                        <div style={{ fontSize: 11, fontWeight: 700 }}>{config.sig1Title}</div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{
+                                        height: 28,
+                                        borderBottom: '1px solid currentColor',
+                                        width: 110,
+                                        margin: '0 auto 4px',
+                                        fontFamily: "'Great Vibes', cursive",
+                                        fontSize: 18,
+                                        color: '#1E3A8A'
+                                    }}>
+                                        Dr. Ananya Roy
                                     </div>
-                                    <div style={{ textAlign: 'center' }}>
-                                        <div style={{
-                                            height: 28,
-                                            borderBottom: '1px solid currentColor',
-                                            width: 110,
-                                            margin: '0 auto 4px',
-                                            fontFamily: "'Great Vibes', cursive",
-                                            fontSize: 18,
-                                            color: '#1E3A8A'
-                                        }}>
-                                            Dr. Ananya Roy
-                                        </div>
-                                        <div style={{ fontSize: 11, fontWeight: 700 }}>{config.sig2Title}</div>
-                                    </div>
+                                    <div style={{ fontSize: 11, fontWeight: 700 }}>{config.sig2Title}</div>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* ── Saved Templates Gallery Modal ────────────────────────────────────── */}
+            <Modal title="Institutional Saved Templates Library" isOpen={showGalleryModal} onClose={() => setShowGalleryModal(false)}>
+                <p style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 20 }}>
+                    Here are all saved certificate designs created by Event Coordinators. Click <strong>"Load & Apply Template"</strong> to load any template into the studio canvas.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, maxHeight: 400, overflowY: 'auto' }}>
+                    {savedTemplates.map(tmpl => (
+                        <div key={tmpl.id} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 16, background: 'var(--bg-surface)' }}>
+                            <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-primary)', marginBottom: 4 }}>
+                                {tmpl.title}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-light)', marginBottom: 12 }}>
+                                Saved: {tmpl.savedAt} • Size: {tmpl.pageSize}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => handleLoadTemplate(tmpl)}
+                                    style={{ fontSize: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 4 }}
+                                >
+                                    <CheckCircle2 size={14} /> Load & Apply
+                                </button>
+                                <button
+                                    className="btn-icon btn-danger"
+                                    onClick={() => handleDeleteSavedTemplate(tmpl.id)}
+                                    title="Delete template"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </Modal>
         </div>
     );
 }

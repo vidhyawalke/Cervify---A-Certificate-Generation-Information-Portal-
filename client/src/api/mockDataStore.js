@@ -14,8 +14,14 @@ const INITIAL_STUDENTS = [
     { id: 106, rollNo: 'EC-2024-012', name: 'Sneha Reddy', email: 'sneha.reddy@institution.edu', department: 'Electronics', category: 'Participant', awardLabel: 'Certificate of Participation' }
 ];
 
+const INITIAL_STAFF = [
+    { id: 1, name: 'Prof. Rajesh Sharma', email: 'coordinator@cervify.edu', role: 'coordinator', username: 'coordinator@cervify.edu', department: 'Computer Science', status: 'ACTIVE', assignedDate: '2025-01-10' },
+    { id: 2, name: 'Dr. Ananya Roy', email: 'principal@cervify.edu', role: 'principal', username: 'principal@cervify.edu', department: 'Office of the Principal', status: 'ACTIVE', assignedDate: '2024-08-15' },
+    { id: 3, name: 'Dr. Vikramaditya Sen (Admin)', email: 'admin@cervify.edu', role: 'admin', username: 'admin@cervify.edu', department: 'Academic Governance Board', status: 'ACTIVE', assignedDate: '2024-01-01' }
+];
+
 const INITIAL_DEPARTMENTS = [
-    { id: 1, name: 'Computer Science & Engineering', code: 'CSE', head: 'Dr. V. K. Raman' },
+    { id: 1, name: 'Computer Science & Engineering', code: 'CSE', head: 'Prof. Rajesh Sharma' },
     { id: 2, name: 'Electrical & Electronics', code: 'EEE', head: 'Dr. M. S. Swaminathan' },
     { id: 3, name: 'Biotechnology & Life Sciences', code: 'BTS', head: 'Dr. Sunita Narain' },
     { id: 4, name: 'Mechanical & Automation', code: 'MAE', head: 'Dr. A. P. J. Kalam' },
@@ -30,6 +36,35 @@ const INITIAL_LABELS = [
     { id: 'appr', title: 'Special Merit & Appreciation', badge: '🎖️', color: '#8B0000', description: 'Awarded for extraordinary contribution' },
     { id: 'spkr', title: 'Keynote Speaker / Guest', badge: '🎤', color: '#4B0082', description: 'Honoring event guest speakers' },
     { id: 'voln', title: 'Organizing Volunteer', badge: '🤝', color: '#008080', description: 'Recognizing student organizers' }
+];
+
+const INITIAL_SAVED_TEMPLATES = [
+    {
+        id: 'tmpl_101',
+        title: 'Gold Deluxe National Hackathon Template',
+        bgPreset: 'gold_luxury',
+        pageSize: 'A4_LANDSCAPE',
+        primaryFont: 'Cinzel, Georgia, serif',
+        accentColor: '#1E3A8A',
+        titleColor: '#D4AF37',
+        titleText: 'CERTIFICATE OF EXCELLENCE',
+        subtitleText: 'This is proudly presented to',
+        reasonText: 'for outstanding innovation and technical skill in the National Cyber Security Hackathon.',
+        savedAt: '2026-07-20'
+    },
+    {
+        id: 'tmpl_102',
+        title: 'Royal Crest Symposium Template',
+        bgPreset: 'royal_crest',
+        pageSize: 'A4_LANDSCAPE',
+        primaryFont: "'Playfair Display', Georgia, serif",
+        accentColor: '#C8841A',
+        titleColor: '#1E3A8A',
+        titleText: 'CERTIFICATE OF MERIT',
+        subtitleText: 'This certificate is proudly awarded to',
+        reasonText: 'for presenting meritorious research and technical prototypes.',
+        savedAt: '2026-07-28'
+    }
 ];
 
 const INITIAL_ACTIVITIES = [
@@ -52,8 +87,9 @@ const INITIAL_ACTIVITIES = [
             titleText: 'CERTIFICATE OF EXCELLENCE',
             subtitleText: 'This is to proudly certify that',
             reasonText: 'has demonstrated outstanding innovation and technical skill in the National Cyber Security Hackathon 2026 held on July 15, 2026.',
-            primaryFont: 'Cinzel',
+            primaryFont: 'Cinzel, Georgia, serif',
             accentColor: '#1E3A8A',
+            titleColor: '#D4AF37',
             showQr: true,
             showSeal: true
         }
@@ -71,21 +107,21 @@ const INITIAL_ACTIVITIES = [
         signatoryName: null,
         totalStudents: 6,
         certTemplate: {
-            bgDesign: 'modern_executive',
+            bgDesign: 'royal_crest',
             customBgUrl: '',
             pageSize: 'A4_LANDSCAPE',
             titleText: 'CERTIFICATE OF MERIT',
             subtitleText: 'This certificate is proudly awarded to',
             reasonText: 'for actively presenting meritorious research and prototypes at the Annual Tech Symposium & Robotics Expo.',
-            primaryFont: 'Playfair Display',
+            primaryFont: "'Playfair Display', Georgia, serif",
             accentColor: '#C8841A',
+            titleColor: '#1E3A8A',
             showQr: true,
             showSeal: true
         }
     }
 ];
 
-// Helper to calculate simple client cryptographic hash for certificates
 function generateCertHash(certNo, studentName, eventName, date) {
     const raw = `${certNo}:${studentName}:${eventName}:${date}:CERVIFY_SECURE_TOKEN_2026`;
     let hash = 0;
@@ -98,7 +134,6 @@ function generateCertHash(certNo, studentName, eventName, date) {
     return `CERV-AUTH-SHA256-${hex}-VERIFIED`;
 }
 
-// Memory & LocalStorage Persistence Manager
 class LocalDataStore {
     constructor() {
         this.init();
@@ -107,6 +142,9 @@ class LocalDataStore {
     init() {
         if (!localStorage.getItem('cervify_students')) {
             localStorage.setItem('cervify_students', JSON.stringify(INITIAL_STUDENTS));
+        }
+        if (!localStorage.getItem('cervify_staff')) {
+            localStorage.setItem('cervify_staff', JSON.stringify(INITIAL_STAFF));
         }
         if (!localStorage.getItem('cervify_departments')) {
             localStorage.setItem('cervify_departments', JSON.stringify(INITIAL_DEPARTMENTS));
@@ -117,6 +155,38 @@ class LocalDataStore {
         if (!localStorage.getItem('cervify_activities')) {
             localStorage.setItem('cervify_activities', JSON.stringify(INITIAL_ACTIVITIES));
         }
+        if (!localStorage.getItem('cervify_saved_templates')) {
+            localStorage.setItem('cervify_saved_templates', JSON.stringify(INITIAL_SAVED_TEMPLATES));
+        }
+    }
+
+    // ── Staff & Credentials ──────────────────────────────────────────────────
+    getStaff() {
+        return JSON.parse(localStorage.getItem('cervify_staff')) || INITIAL_STAFF;
+    }
+
+    addStaff(staffData) {
+        const staff = this.getStaff();
+        const newMember = {
+            id: Date.now(),
+            name: staffData.name,
+            email: staffData.email,
+            role: staffData.role || 'coordinator',
+            username: staffData.email,
+            password: staffData.password || 'cervify123',
+            department: staffData.department || 'General',
+            status: 'ACTIVE',
+            assignedDate: new Date().toISOString().split('T')[0]
+        };
+        staff.unshift(newMember);
+        localStorage.setItem('cervify_staff', JSON.stringify(staff));
+        return newMember;
+    }
+
+    deleteStaff(id) {
+        const staff = this.getStaff().filter(s => s.id !== id);
+        localStorage.setItem('cervify_staff', JSON.stringify(staff));
+        return true;
     }
 
     // ── Students ─────────────────────────────────────────────────────────────
@@ -168,6 +238,30 @@ class LocalDataStore {
         return true;
     }
 
+    // ── Saved Templates ──────────────────────────────────────────────────────
+    getSavedTemplates() {
+        return JSON.parse(localStorage.getItem('cervify_saved_templates')) || INITIAL_SAVED_TEMPLATES;
+    }
+
+    saveTemplate(templateData) {
+        const tmpls = this.getSavedTemplates();
+        const newTmpl = {
+            id: `tmpl_${Date.now()}`,
+            title: templateData.title || 'Saved Custom Template',
+            savedAt: new Date().toISOString().split('T')[0],
+            ...templateData
+        };
+        tmpls.unshift(newTmpl);
+        localStorage.setItem('cervify_saved_templates', JSON.stringify(tmpls));
+        return newTmpl;
+    }
+
+    deleteTemplate(id) {
+        const tmpls = this.getSavedTemplates().filter(t => t.id !== id);
+        localStorage.setItem('cervify_saved_templates', JSON.stringify(tmpls));
+        return true;
+    }
+
     // ── Award Labels ─────────────────────────────────────────────────────────
     getLabels() {
         return JSON.parse(localStorage.getItem('cervify_labels')) || [];
@@ -187,7 +281,6 @@ class LocalDataStore {
         return newLabel;
     }
 
-    // ── Departments ──────────────────────────────────────────────────────────
     getDepartments() {
         return JSON.parse(localStorage.getItem('cervify_departments')) || [];
     }
@@ -200,7 +293,6 @@ class LocalDataStore {
         return newDept;
     }
 
-    // ── Activities & Batches ──────────────────────────────────────────────────
     getActivities() {
         return JSON.parse(localStorage.getItem('cervify_activities')) || [];
     }
@@ -230,8 +322,9 @@ class LocalDataStore {
                 titleText: 'CERTIFICATE OF EXCELLENCE',
                 subtitleText: 'This is to proudly certify that',
                 reasonText: 'for outstanding performance and active participation.',
-                primaryFont: 'Cinzel',
+                primaryFont: 'Cinzel, Georgia, serif',
                 accentColor: '#1E3A8A',
+                titleColor: '#D4AF37',
                 showQr: true,
                 showSeal: true
             }
@@ -266,20 +359,17 @@ class LocalDataStore {
         });
     }
 
-    // ── Certificate Verification ─────────────────────────────────────────────
     verifyCertificate(certNo) {
         const activities = this.getActivities();
         const students = this.getStudents();
-
-        // Search for matching certificate by ID or Roll Number
         const cleanNo = (certNo || '').trim().toUpperCase();
+
         const student = students.find(s =>
-            cleanNo.includes(s.rollNo.toUpperCase()) ||
+            cleanNo.includes(String(s.rollNo).toUpperCase()) ||
             cleanNo.includes(String(s.id))
         ) || students[0];
 
         const activity = activities.find(a => a.status === 'APPROVED') || activities[0];
-
         const issueDate = activity ? activity.issueDate : '2026-07-15';
         const eventName = activity ? activity.title : 'National Academic Event 2026';
         const hash = generateCertHash(cleanNo || 'CERV-2026-101', student.name, eventName, issueDate);

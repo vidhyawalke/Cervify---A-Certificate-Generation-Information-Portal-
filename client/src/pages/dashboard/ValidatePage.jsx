@@ -1,7 +1,7 @@
 /**
  * @file ValidatePage.jsx
  * @description Principal Approvals & Digital Signature Sign-Off Dashboard for Cervify.
- * Enables Principals to inspect submitted certificate batches, draw or upload digital signatures, and authorize releases.
+ * Includes strict validation of Principal digital signature drawing/image upload and security PIN.
  */
 
 import React, { useState, useRef } from 'react';
@@ -9,15 +9,16 @@ import { CheckSquare, ShieldCheck, PenTool, CheckCircle2, AlertCircle, FileText,
 import { useAppContext } from '../../context/AppContext';
 import { certificateApi } from '../../api/api';
 import { mockStore } from '../../api/mockDataStore';
+import { validatePin, validateSignature } from '../../utils/validators';
 import Modal from '../../components/ui/Modal';
 
 export default function ValidatePage() {
     const { token, activities, refreshData, user } = useAppContext();
 
-    const [selectedActId, setSelectedActId] = useState('202');
+    const [selectedActId, setSelectedActId] = useState('');
     const [statusMsg, setStatusMsg] = useState('');
     const [signaturePin, setSignaturePin] = useState('');
-    const [pinError, setPinError] = useState('');
+    const [validationError, setValidationError] = useState('');
     const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     // Canvas Signature State
@@ -25,12 +26,11 @@ export default function ValidatePage() {
     const [isDrawing, setIsDrawing] = useState(false);
     const [signatureImage, setSignatureImage] = useState('');
 
-    const currentActivity = mockStore.getActivityById(selectedActId) || activities[0];
+    const currentActivity = mockStore.getActivityById(selectedActId);
     const studentsList = mockStore.getStudents();
 
     const notify = (msg) => { setStatusMsg(msg); setTimeout(() => setStatusMsg(''), 4000); };
 
-    // Canvas drawing helpers
     const startDrawing = (e) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -49,7 +49,7 @@ export default function ValidatePage() {
         const rect = canvas.getBoundingClientRect();
         ctx.lineWidth = 3;
         ctx.lineCap = 'round';
-        ctx.strokeStyle = '#1E3A8A';
+        ctx.strokeStyle = '#0F172A';
         ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
         ctx.stroke();
     };
@@ -70,34 +70,40 @@ export default function ValidatePage() {
         setSignatureImage('');
     };
 
-    // Upload signature image handler
     const handleUploadSignature = (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (evt) => {
             setSignatureImage(evt.target.result);
-            notify('Signature image uploaded!');
+            notify('Signature image attached!');
         };
         reader.readAsDataURL(file);
     };
 
-    // Confirm Approval Action
     const handleApproveBatch = async (e) => {
         e.preventDefault();
-        setPinError('');
+        setValidationError('');
 
-        if (!signaturePin) {
-            setPinError('Please enter your Principal Security PIN to authorize.');
+        // Strict Validations
+        const sigVal = validateSignature(signatureImage);
+        if (!sigVal.valid) {
+            setValidationError(sigVal.message);
+            return;
+        }
+
+        const pinVal = validatePin(signaturePin);
+        if (!pinVal.valid) {
+            setValidationError(pinVal.message);
             return;
         }
 
         try {
-            await certificateApi.validate(token, selectedActId, signatureImage || 'data:image/svg+xml;utf8,signature', user?.name || 'Dr. Ananya Roy (Principal)');
+            await certificateApi.validate(token, selectedActId, signatureImage, user?.name || 'Principal');
             await refreshData();
-            notify(`Batch "${currentActivity?.title || 'Certificates'}" approved and digitally signed successfully!`);
+            notify(`Batch "${currentActivity?.title || 'Certificates'}" approved and digitally signed!`);
         } catch (err) {
-            setPinError(err.message);
+            setValidationError(err.message);
         }
     };
 
@@ -109,211 +115,181 @@ export default function ValidatePage() {
             <div className="page-header">
                 <div>
                     <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <CheckSquare size={26} color="var(--primary)" />
-                        Principal Approvals & Signature Queue
+                        <CheckSquare size={24} color="var(--primary)" />
+                        Principal Approvals & Digital Signature Sign-Off
                     </h2>
                     <p className="page-subtitle">
-                        Review student certificate batches, attach digital signatures, and authorize formal release for Coordinator printing & ZIP export.
+                        Review submitted student certificate batches, attach your digital signature, and authorize batch release.
                     </p>
                 </div>
             </div>
 
-            {/* Activity Selector Card */}
-            <div className="card" style={{ padding: 24, marginBottom: 24 }}>
-                <label className="form-label" style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <FileText size={18} color="var(--primary)" /> Select Event Batch for Sign-Off Review
+            {/* Select Event Activity Batch */}
+            <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <FileText size={16} color="var(--primary)" /> Select Submitted Event Batch:
                 </label>
                 <select
                     className="form-control"
                     value={selectedActId}
                     onChange={e => setSelectedActId(e.target.value)}
-                    style={{ fontSize: 14, fontWeight: 600, padding: 12 }}
+                    style={{ fontSize: 13.5, fontWeight: 600 }}
                 >
+                    <option value="">— Select an Event Batch to Review —</option>
                     {activities.map(a => (
                         <option key={a.id} value={a.id}>
-                            {a.title} ({a.department}) — [{a.status === 'APPROVED' ? '✅ APPROVED' : '⏳ PENDING APPROVAL'}]
+                            {a.title} ({a.department}) — [{a.status === 'APPROVED' ? 'APPROVED' : 'PENDING APPROVAL'}]
                         </option>
                     ))}
                 </select>
             </div>
 
-            {currentActivity && (
+            {!currentActivity ? (
+                <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-light)' }}>
+                    No event batch selected or no pending batches available for review.
+                </div>
+            ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
-                    {/* Left: Batch Details & Student Roster */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                        <div className="card" style={{ padding: 24 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                                <div>
-                                    <h3 style={{ fontSize: 20, fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>
-                                        {currentActivity.title}
-                                    </h3>
-                                    <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 4 }}>
-                                        Department: <strong>{currentActivity.department}</strong> • Date: <strong>{currentActivity.issueDate}</strong>
-                                    </div>
-                                </div>
-
-                                <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    padding: '6px 14px',
-                                    borderRadius: 20,
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    background: currentActivity.status === 'APPROVED' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                                    color: currentActivity.status === 'APPROVED' ? '#10B981' : '#F59E0B'
-                                }}>
-                                    {currentActivity.status === 'APPROVED' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-                                    {currentActivity.status === 'APPROVED' ? 'Digitally Signed & Released' : 'Pending Principal Approval'}
-                                </span>
-                            </div>
-
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, background: 'var(--bg-surface-2)', padding: 16, borderRadius: 10, marginBottom: 20 }}>
-                                <div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-light)', textTransform: 'uppercase', fontWeight: 700 }}>Total Recipients</div>
-                                    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--primary)' }}>{studentsList.length}</div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-light)', textTransform: 'uppercase', fontWeight: 700 }}>Category</div>
-                                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{currentActivity.category}</div>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: 11, color: 'var(--text-light)', textTransform: 'uppercase', fontWeight: 700 }}>Security Hash</div>
-                                    <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 700, color: '#10B981', marginTop: 4 }}>SHA256 Enabled</div>
+                    {/* Left: Batch Summary */}
+                    <div className="card" style={{ padding: 24 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+                            <div>
+                                <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>
+                                    {currentActivity.title}
+                                </h3>
+                                <div style={{ fontSize: 13, color: 'var(--text-light)' }}>
+                                    Department: <strong>{currentActivity.department}</strong> • Issue Date: <strong>{currentActivity.issueDate}</strong>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                <h4 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>Certificate Recipients Preview:</h4>
-                                <button className="btn btn-secondary" onClick={() => setShowPreviewModal(true)} style={{ fontSize: 12, padding: '4px 12px' }}>
-                                    <Eye size={14} /> Full Batch Preview
-                                </button>
-                            </div>
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '4px 12px',
+                                borderRadius: 16,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                background: currentActivity.status === 'APPROVED' ? 'rgba(5, 150, 105, 0.12)' : 'rgba(217, 119, 6, 0.12)',
+                                color: currentActivity.status === 'APPROVED' ? '#059669' : '#D97706'
+                            }}>
+                                {currentActivity.status === 'APPROVED' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                                {currentActivity.status === 'APPROVED' ? 'Digitally Signed' : 'Pending Sign-Off'}
+                            </span>
+                        </div>
 
-                            <div className="table-responsive">
-                                <table className="table" style={{ fontSize: 13 }}>
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Recipient Name</th>
-                                            <th>Roll No / Reg ID</th>
-                                            <th>Assigned Award Label</th>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                            <h4 style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>Certificate Recipients ({studentsList.length}):</h4>
+                            <button className="btn btn-secondary" onClick={() => setShowPreviewModal(true)} style={{ fontSize: 12, padding: '4px 10px' }}>
+                                <Eye size={13} /> View Roster Details
+                            </button>
+                        </div>
+
+                        <div className="table-responsive">
+                            <table className="table" style={{ fontSize: 12.5 }}>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Recipient Name</th>
+                                        <th>Roll / Reg No</th>
+                                        <th>Award Label</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {studentsList.map((st, i) => (
+                                        <tr key={st.id || i}>
+                                            <td>{i + 1}</td>
+                                            <td style={{ fontWeight: 700 }}>{st.name}</td>
+                                            <td><span style={{ fontFamily: 'monospace' }}>{st.rollNo}</span></td>
+                                            <td>
+                                                <span style={{ fontSize: 11, fontWeight: 700, background: 'rgba(212, 175, 55, 0.15)', color: '#B8860B', padding: '2px 8px', borderRadius: 8 }}>
+                                                    <Award size={11} /> {st.awardLabel || st.category || 'Participant'}
+                                                </span>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {studentsList.slice(0, 6).map((st, i) => (
-                                            <tr key={st.id || i}>
-                                                <td>{i + 1}</td>
-                                                <td style={{ fontWeight: 700 }}>{st.name}</td>
-                                                <td><span style={{ fontFamily: 'monospace' }}>{st.rollNo}</span></td>
-                                                <td>
-                                                    <span style={{
-                                                        fontSize: 11,
-                                                        fontWeight: 700,
-                                                        padding: '2px 8px',
-                                                        borderRadius: 10,
-                                                        background: 'rgba(212, 175, 55, 0.15)',
-                                                        color: '#B8860B'
-                                                    }}>
-                                                        <Award size={12} /> {st.awardLabel || st.category || 'Participant'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 
-                    {/* Right: Digital Signature & Sign-Off Authorization */}
+                    {/* Right: Signature & PIN Form */}
                     <div className="card" style={{ padding: 24 }}>
-                        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <PenTool size={18} color="var(--primary)" /> Principal Signature Pad
+                        <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <PenTool size={16} color="var(--primary)" /> Principal Digital Signature
                         </h3>
 
                         {currentActivity.status === 'APPROVED' ? (
-                            <div style={{ textAlign: 'center', padding: 24, background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 12 }}>
-                                <CheckCircle2 size={40} color="#10B981" style={{ marginBottom: 12 }} />
-                                <h4 style={{ fontSize: 16, fontWeight: 700, color: '#059669', margin: '0 0 6px 0' }}>
-                                    Batch Digitally Signed
+                            <div style={{ textAlign: 'center', padding: 20, background: 'rgba(5, 150, 105, 0.08)', border: '1px solid rgba(5, 150, 105, 0.2)', borderRadius: 10 }}>
+                                <CheckCircle2 size={32} color="#059669" style={{ marginBottom: 8 }} />
+                                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#059669', margin: '0 0 4px 0' }}>
+                                    Batch Approved & Signed
                                 </h4>
                                 <p style={{ fontSize: 12, color: 'var(--text-light)', margin: 0 }}>
-                                    Signed by <strong>{currentActivity.signatoryName || 'Dr. Ananya Roy (Principal)'}</strong> on {currentActivity.signatureDate || 'July 16, 2026'}.
+                                    Signed by <strong>{currentActivity.signatoryName || 'Principal'}</strong> on {currentActivity.signatureDate}.
                                 </p>
                             </div>
                         ) : (
                             <form onSubmit={handleApproveBatch}>
-                                <p style={{ fontSize: 12, color: 'var(--text-light)', marginBottom: 14, lineHeight: 1.5 }}>
-                                    Draw your signature on the pad below or upload a PNG signature image to authorize batch release:
+                                <p style={{ fontSize: 12, color: 'var(--text-light)', marginBottom: 12 }}>
+                                    Draw signature on white backing or upload signature image file:
                                 </p>
 
-                                {/* Signature Canvas */}
+                                {/* White backing pad */}
                                 <div style={{ marginBottom: 14 }}>
-                                    <div style={{ position: 'relative', border: '2px dashed var(--border)', borderRadius: 10, background: '#FFFFFF', overflow: 'hidden' }}>
+                                    <div style={{ border: '1px solid var(--border-strong)', borderRadius: 8, background: '#FFFFFF', overflow: 'hidden' }}>
                                         <canvas
                                             ref={canvasRef}
                                             width={330}
-                                            height={130}
+                                            height={120}
                                             onMouseDown={startDrawing}
                                             onMouseMove={draw}
                                             onMouseUp={stopDrawing}
                                             onMouseLeave={stopDrawing}
-                                            style={{ cursor: 'crosshair', display: 'block', width: '100%', height: 130 }}
+                                            style={{ cursor: 'crosshair', display: 'block', width: '100%', height: 120 }}
                                         />
                                     </div>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                                        <button type="button" onClick={clearCanvas} style={{ background: 'none', border: 'none', fontSize: 12, color: '#EF4444', cursor: 'pointer', fontWeight: 600 }}>
-                                            Clear Pad
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                                        <button type="button" onClick={clearCanvas} style={{ background: 'none', border: 'none', fontSize: 11, color: 'var(--danger)', cursor: 'pointer', fontWeight: 600 }}>
+                                            Clear Signature
                                         </button>
-                                        <label style={{ fontSize: 12, color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }}>
-                                            Or Upload Signature Image (.PNG)
-                                            <input type="file" accept="image/png" onChange={handleUploadSignature} style={{ display: 'none' }} />
+                                        <label style={{ fontSize: 11, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600 }}>
+                                            Upload Signature Image (.PNG)
+                                            <input type="file" accept="image/png, image/jpeg" onChange={handleUploadSignature} style={{ display: 'none' }} />
                                         </label>
                                     </div>
                                 </div>
 
-                                {pinError && (
-                                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', padding: '10px 12px', borderRadius: 8, fontSize: 12, marginBottom: 14 }}>
-                                        {pinError}
+                                {validationError && (
+                                    <div className="alert-banner alert-danger" style={{ padding: '8px 12px', fontSize: 12 }}>
+                                        {validationError}
                                     </div>
                                 )}
 
-                                <div className="form-group" style={{ marginBottom: 20 }}>
-                                    <label className="form-label" style={{ fontSize: 12, fontWeight: 700 }}>
-                                        Enter Principal Security PIN
+                                <div className="form-group" style={{ marginBottom: 16 }}>
+                                    <label className="form-label" style={{ fontSize: 11 }}>
+                                        Principal Security PIN
                                     </label>
                                     <div style={{ position: 'relative' }}>
                                         <input
                                             type="password"
                                             className="form-control"
-                                            placeholder="Enter PIN (e.g. 1234)"
+                                            placeholder="Enter PIN (min 3 chars)"
                                             value={signaturePin}
                                             onChange={e => setSignaturePin(e.target.value)}
-                                            style={{ paddingLeft: 38 }}
+                                            style={{ paddingLeft: 36 }}
                                             required
                                         />
-                                        <Lock size={16} color="var(--text-light)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+                                        <Lock size={15} color="var(--text-light)" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
                                     </div>
                                 </div>
 
                                 <button
                                     type="submit"
                                     className="btn btn-primary"
-                                    style={{
-                                        width: '100%',
-                                        padding: 12,
-                                        fontSize: 14,
-                                        fontWeight: 700,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: 8,
-                                        background: 'linear-gradient(135deg, #10B981, #059669)',
-                                        borderColor: '#059669'
-                                    }}
+                                    style={{ width: '100%', padding: 11, fontSize: 13.5 }}
                                 >
-                                    <ShieldCheck size={18} /> Approve & Digitally Sign Batch
+                                    <ShieldCheck size={16} /> Authorize & Sign Batch
                                 </button>
                             </form>
                         )}
@@ -321,10 +297,10 @@ export default function ValidatePage() {
                 </div>
             )}
 
-            {/* Batch Preview Modal */}
-            <Modal title={`Recipients Preview for ${currentActivity?.title}`} isOpen={showPreviewModal} onClose={() => setShowPreviewModal(false)}>
-                <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-                    <table className="table" style={{ fontSize: 13 }}>
+            {/* Roster Details Modal */}
+            <Modal title={`Recipient Roster for ${currentActivity?.title}`} isOpen={showPreviewModal} onClose={() => setShowPreviewModal(false)}>
+                <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+                    <table className="table" style={{ fontSize: 12 }}>
                         <thead>
                             <tr>
                                 <th>#</th>

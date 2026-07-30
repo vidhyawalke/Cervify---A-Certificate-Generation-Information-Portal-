@@ -1,15 +1,16 @@
 /**
  * @file StaffPage.jsx
- * @description System Admin Account Governance Portal for Cervify.
- * Enables System Admins to create Coordinator & Principal accounts, reset usernames/passwords, and manage staff retirements.
+ * @description System Admin Staff Accounts & Credentials Management for Cervify.
+ * Includes strict input validation for account creation and credential resets.
  */
 
 import React, { useState, useMemo } from 'react';
-import { UserCheck, Plus, Trash2, Search, KeyRound, Shield, CheckCircle2, RefreshCw } from 'lucide-react';
+import { UserCheck, Plus, Trash2, Search, KeyRound, Shield, CheckCircle2, RefreshCw, Lock } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { masterApi } from '../../api/api';
 import Modal from '../../components/ui/Modal';
 import { mockStore } from '../../api/mockDataStore';
+import { validateEmail, validateUsername, validatePassword, validateFullName } from '../../utils/validators';
 
 export default function StaffPage() {
     const { refreshData } = useAppContext();
@@ -17,12 +18,14 @@ export default function StaffPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('ALL');
     const [statusMsg, setStatusMsg] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
     const [showAddModal, setShowAddModal] = useState(false);
 
     // Reset password modal state
     const [resetModalStaff, setResetModalStaff] = useState(null);
     const [newUsernameInput, setNewUsernameInput] = useState('');
     const [newPasswordInput, setNewPasswordInput] = useState('');
+    const [resetError, setResetError] = useState('');
 
     const [createdCredentialCard, setCreatedCredentialCard] = useState(null);
 
@@ -41,7 +44,20 @@ export default function StaffPage() {
 
     const handleCreateStaff = async (e) => {
         e.preventDefault();
-        if (!form.name || !form.email || !form.password) return;
+        setErrorMsg('');
+
+        // Strict Validations
+        const nVal = validateFullName(form.name);
+        if (!nVal.valid) return setErrorMsg(nVal.message);
+
+        const eVal = validateEmail(form.email);
+        if (!eVal.valid) return setErrorMsg(eVal.message);
+
+        const uVal = validateUsername(form.username);
+        if (!uVal.valid) return setErrorMsg(uVal.message);
+
+        const pVal = validatePassword(form.password);
+        if (!pVal.valid) return setErrorMsg(pVal.message);
 
         try {
             const newStaff = mockStore.createStaffAccount(form);
@@ -51,7 +67,7 @@ export default function StaffPage() {
             setForm({ name: '', email: '', username: '', password: '', role: 'coordinator', department: 'Computer Science' });
             notify(`New ${newStaff.role.toUpperCase()} account created for ${newStaff.name}!`);
         } catch (err) {
-            notify(err.message);
+            setErrorMsg(err.message);
         }
     };
 
@@ -59,24 +75,31 @@ export default function StaffPage() {
         setResetModalStaff(staffMember);
         setNewUsernameInput(staffMember.username);
         setNewPasswordInput(staffMember.password || 'cervify123');
+        setResetError('');
     };
 
     const handleConfirmReset = async (e) => {
         e.preventDefault();
-        if (!resetModalStaff) return;
+        setResetError('');
+
+        const uVal = validateUsername(newUsernameInput);
+        if (!uVal.valid) return setResetError(uVal.message);
+
+        const pVal = validatePassword(newPasswordInput);
+        if (!pVal.valid) return setResetError(pVal.message);
 
         try {
             const updated = mockStore.resetStaffCredentials(resetModalStaff.id, newUsernameInput, newPasswordInput);
             await refreshData();
             setResetModalStaff(null);
-            notify(`Credentials updated for ${updated.name}! Username: ${updated.username}, Password: ${updated.password}`);
+            notify(`Credentials updated for ${updated.name}! Username: ${updated.username}`);
         } catch (err) {
-            notify(err.message);
+            setResetError(err.message);
         }
     };
 
     const handleDeleteStaff = async (id, name) => {
-        if (!window.confirm(`Remove / Retire account for ${name}? They will no longer have access to the portal.`)) return;
+        if (!window.confirm(`Retire / Remove account for ${name}? They will no longer have portal access.`)) return;
         mockStore.deleteStaffAccount(id);
         await refreshData();
         notify(`Account for ${name} retired.`);
@@ -106,15 +129,15 @@ export default function StaffPage() {
             <div className="page-header">
                 <div>
                     <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <UserCheck size={26} color="var(--primary)" />
+                        <UserCheck size={24} color="var(--primary)" />
                         Institutional Staff Accounts & Credentials Governance
                     </h2>
                     <p className="page-subtitle">
-                        System Admin Directory: Create Coordinator and Principal accounts, manage login usernames and passwords, and handle retired faculty.
+                        System Admin Directory: Create Coordinator and Principal accounts, manage login credentials, and handle faculty retirements.
                     </p>
                 </div>
 
-                <button className="btn btn-primary" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="btn btn-primary" onClick={() => { setShowAddModal(true); setErrorMsg(''); }} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Plus size={16} /> Create Coordinator / Principal Account
                 </button>
             </div>
@@ -122,25 +145,25 @@ export default function StaffPage() {
             {/* Issued Credentials Notification Card */}
             {createdCredentialCard && (
                 <div style={{
-                    background: 'rgba(16, 185, 129, 0.08)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    borderRadius: 14,
-                    padding: 20,
-                    marginBottom: 24,
+                    background: 'var(--success-light)',
+                    border: '1px solid rgba(5, 150, 105, 0.3)',
+                    borderRadius: 10,
+                    padding: 16,
+                    marginBottom: 20,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between'
                 }}>
                     <div>
-                        <div style={{ fontWeight: 800, fontSize: 15, color: '#059669', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                            <CheckCircle2 size={18} /> Credentials Created for {createdCredentialCard.name} ({createdCredentialCard.role.toUpperCase()})
+                        <div style={{ fontWeight: 800, fontSize: 14, color: '#065F46', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                            <CheckCircle2 size={16} /> Credentials Issued for {createdCredentialCard.name} ({createdCredentialCard.role.toUpperCase()})
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: 12.5, color: '#047857' }}>
                             Username: <strong style={{ color: 'var(--primary)', fontFamily: 'monospace' }}>{createdCredentialCard.username}</strong> • Password: <strong style={{ color: '#D97706', fontFamily: 'monospace' }}>{createdCredentialCard.password}</strong>
                         </div>
                     </div>
-                    <button className="btn btn-secondary" onClick={() => setCreatedCredentialCard(null)} style={{ fontSize: 12 }}>
-                        Dismiss Card
+                    <button className="btn btn-secondary" onClick={() => setCreatedCredentialCard(null)} style={{ fontSize: 11, padding: '4px 8px' }}>
+                        Dismiss
                     </button>
                 </div>
             )}
@@ -159,12 +182,12 @@ export default function StaffPage() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>Filter Role:</span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Role Filter:</span>
                     <select
                         className="form-control"
                         value={roleFilter}
                         onChange={e => setRoleFilter(e.target.value)}
-                        style={{ width: 200 }}
+                        style={{ width: 190 }}
                     >
                         <option value="ALL">All Staff Accounts</option>
                         <option value="coordinator">Event Coordinator</option>
@@ -184,7 +207,7 @@ export default function StaffPage() {
                             <th>Official Email</th>
                             <th>Role Scope</th>
                             <th>Department</th>
-                            <th style={{ textAlign: 'right' }}>Manage Credentials & Access</th>
+                            <th style={{ textAlign: 'right' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -201,7 +224,7 @@ export default function StaffPage() {
                                         {member.name}
                                     </td>
                                     <td>
-                                        <span style={{ fontFamily: 'monospace', fontWeight: 700, background: 'var(--bg-surface-2)', padding: '3px 8px', borderRadius: 4, color: 'var(--primary)' }}>
+                                        <span style={{ fontFamily: 'monospace', fontWeight: 700, background: 'var(--bg-surface-2)', padding: '2px 8px', borderRadius: 4, color: 'var(--primary)' }}>
                                             {member.username}
                                         </span>
                                     </td>
@@ -210,13 +233,13 @@ export default function StaffPage() {
                                         <span style={{
                                             display: 'inline-flex',
                                             alignItems: 'center',
-                                            gap: 6,
-                                            padding: '4px 12px',
-                                            borderRadius: 16,
+                                            gap: 4,
+                                            padding: '3px 10px',
+                                            borderRadius: 12,
                                             fontSize: 11,
                                             fontWeight: 800,
-                                            background: member.role === 'admin' ? 'rgba(139, 92, 246, 0.15)' :
-                                                        member.role === 'principal' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                            background: member.role === 'admin' ? 'rgba(124, 58, 237, 0.12)' :
+                                                        member.role === 'principal' ? 'rgba(5, 150, 105, 0.12)' : 'rgba(37, 99, 235, 0.12)',
                                             color: member.role === 'admin' ? '#7C3AED' :
                                                    member.role === 'principal' ? '#059669' : '#2563EB'
                                         }}>
@@ -226,13 +249,13 @@ export default function StaffPage() {
                                     <td>{member.department}</td>
                                     <td style={{ textAlign: 'right' }}>
                                         {member.role !== 'admin' && (
-                                            <div style={{ display: 'inline-flex', gap: 8 }}>
+                                            <div style={{ display: 'inline-flex', gap: 6 }}>
                                                 <button
                                                     className="btn btn-secondary"
                                                     onClick={() => handleOpenResetModal(member)}
                                                     style={{ fontSize: 12, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                                 >
-                                                    <RefreshCw size={13} /> Reset Login
+                                                    <RefreshCw size={13} /> Reset Credentials
                                                 </button>
                                                 <button
                                                     className="btn-icon btn-danger"
@@ -253,7 +276,13 @@ export default function StaffPage() {
 
             {/* Create Staff Account Modal */}
             <Modal title="Create Coordinator / Principal Account" isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
-                <form onSubmit={handleCreateStaff}>
+                <form onSubmit={handleCreateStaff} noValidate>
+                    {errorMsg && (
+                        <div className="alert-banner alert-danger">
+                            <Lock size={15} /> {errorMsg}
+                        </div>
+                    )}
+
                     <div className="form-group">
                         <label className="form-label">Full Name</label>
                         <input
@@ -278,7 +307,7 @@ export default function StaffPage() {
                         />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div className="form-group">
                             <label className="form-label">Assign Role Scope</label>
                             <select
@@ -302,9 +331,9 @@ export default function StaffPage() {
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         <div className="form-group">
-                            <label className="form-label">Login Username</label>
+                            <label className="form-label">Username</label>
                             <input
                                 type="text"
                                 className="form-control"
@@ -314,7 +343,7 @@ export default function StaffPage() {
                             />
                         </div>
                         <div className="form-group">
-                            <label className="form-label">Login Password</label>
+                            <label className="form-label">Password</label>
                             <input
                                 type="text"
                                 className="form-control"
@@ -325,19 +354,21 @@ export default function StaffPage() {
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
                         <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Create Account</button>
+                        <button type="submit" className="btn btn-primary">Create Staff Account</button>
                     </div>
                 </form>
             </Modal>
 
             {/* Reset Credentials Modal */}
-            <Modal title={`Reset Login for ${resetModalStaff?.name}`} isOpen={!!resetModalStaff} onClose={() => setResetModalStaff(null)}>
-                <form onSubmit={handleConfirmReset}>
-                    <p style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 16 }}>
-                        Update the login username or password for this staff member so they can log in seamlessly.
-                    </p>
+            <Modal title={`Reset Credentials for ${resetModalStaff?.name}`} isOpen={!!resetModalStaff} onClose={() => setResetModalStaff(null)}>
+                <form onSubmit={handleConfirmReset} noValidate>
+                    {resetError && (
+                        <div className="alert-banner alert-danger">
+                            <Lock size={15} /> {resetError}
+                        </div>
+                    )}
 
                     <div className="form-group">
                         <label className="form-label">New Username</label>
@@ -361,9 +392,9 @@ export default function StaffPage() {
                         />
                     </div>
 
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
                         <button type="button" className="btn btn-secondary" onClick={() => setResetModalStaff(null)}>Cancel</button>
-                        <button type="submit" className="btn btn-primary">Save Updated Credentials</button>
+                        <button type="submit" className="btn btn-primary">Save Credentials</button>
                     </div>
                 </form>
             </Modal>

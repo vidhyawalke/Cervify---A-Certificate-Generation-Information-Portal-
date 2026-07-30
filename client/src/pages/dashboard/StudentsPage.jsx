@@ -1,16 +1,17 @@
 /**
  * @file StudentsPage.jsx
  * @description Excel Student Directory & Award Label Tagging Studio for Event Coordinators.
- * Enables coordinators to upload Excel rosters, map custom award labels, and filter students.
+ * Includes strict input validation on Excel uploads and single student additions.
  */
 
 import React, { useState, useMemo, useRef } from 'react';
-import { Users, FileSpreadsheet, Tag, Plus, Trash2, Search, Upload, CheckCircle2, Award, Sparkles, Filter } from 'lucide-react';
+import { Users, FileSpreadsheet, Tag, Plus, Trash2, Search, Upload, CheckCircle2, Award, Sparkles, Filter, Lock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAppContext } from '../../context/AppContext';
 import { masterApi } from '../../api/api';
 import Modal from '../../components/ui/Modal';
 import { mockStore } from '../../api/mockDataStore';
+import { validateFullName, validateRollNo } from '../../utils/validators';
 
 export default function StudentsPage() {
     const { token, students, refreshData } = useAppContext();
@@ -18,6 +19,7 @@ export default function StudentsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('ALL');
     const [statusMsg, setStatusMsg] = useState('');
+    const [errorMsg, setErrorMsg] = useState('');
     const [selectedStudentIds, setSelectedStudentIds] = useState([]);
 
     // Modals
@@ -47,7 +49,10 @@ export default function StudentsPage() {
     const fileInputRef = useRef(null);
     const labelsList = mockStore.getLabels();
 
-    const notify = (msg) => { setStatusMsg(msg); setTimeout(() => setStatusMsg(''), 4000); };
+    const notify = (msg, isErr = false) => {
+        if (isErr) { setErrorMsg(msg); setTimeout(() => setErrorMsg(''), 4000); }
+        else { setStatusMsg(msg); setTimeout(() => setStatusMsg(''), 4000); }
+    };
 
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
@@ -63,15 +68,15 @@ export default function StudentsPage() {
                 const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
                 const parsed = XLSX.utils.sheet_to_json(firstSheet);
 
-                if (parsed.length === 0) {
-                    notify('Error: Uploaded Excel sheet appears to be empty.');
+                if (!parsed || parsed.length === 0) {
+                    notify('Error: Uploaded Excel sheet appears to be empty or unreadable.', true);
                     return;
                 }
 
                 setExcelData(parsed);
                 setShowExcelModal(true);
             } catch (err) {
-                notify('Failed to parse Excel file: ' + err.message);
+                notify('Failed to parse Excel file: ' + err.message, true);
             }
         };
 
@@ -87,13 +92,13 @@ export default function StudentsPage() {
             setExcelFileName('');
             notify(`Successfully imported ${excelData.length} student records from Excel!`);
         } catch (err) {
-            notify('Import error: ' + err.message);
+            notify('Import error: ' + err.message, true);
         }
     };
 
     const handleAssignLabelToSelected = (labelTitle) => {
         if (selectedStudentIds.length === 0) {
-            notify('Please select at least one student from the table.');
+            notify('Please select at least one student from the table.', true);
             return;
         }
 
@@ -113,7 +118,10 @@ export default function StudentsPage() {
 
     const handleCreateCustomLabel = (e) => {
         e.preventDefault();
-        if (!customLabelForm.title) return;
+        if (!customLabelForm.title.trim()) {
+            notify('Award label title is required.', true);
+            return;
+        }
         const newLbl = mockStore.addLabel(customLabelForm);
         setShowLabelModal(false);
         setCustomLabelForm({ title: '', badge: '🎖️', color: '#1E3A8A', description: '' });
@@ -122,6 +130,15 @@ export default function StudentsPage() {
 
     const handleAddSingleStudent = async (e) => {
         e.preventDefault();
+        setErrorMsg('');
+
+        // Strict Validations
+        const nVal = validateFullName(form.name);
+        if (!nVal.valid) return setErrorMsg(nVal.message);
+
+        const rVal = validateRollNo(form.rollNo);
+        if (!rVal.valid) return setErrorMsg(rVal.message);
+
         try {
             await masterApi.addStudent(token, form);
             await refreshData();
@@ -129,7 +146,7 @@ export default function StudentsPage() {
             setForm({ name: '', rollNo: '', department: 'Computer Science', category: 'Participant', awardLabel: 'Certificate of Participation' });
             notify('Student added successfully.');
         } catch (err) {
-            notify(err.message);
+            setErrorMsg(err.message);
         }
     };
 
@@ -180,12 +197,13 @@ export default function StudentsPage() {
     return (
         <div className="page-content">
             {statusMsg && <div className="alert-banner alert-success">{statusMsg}</div>}
+            {errorMsg && <div className="alert-banner alert-danger">{errorMsg}</div>}
 
             {/* Header */}
             <div className="page-header" style={{ alignItems: 'flex-start' }}>
                 <div>
                     <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <FileSpreadsheet size={26} color="var(--primary)" />
+                        <FileSpreadsheet size={24} color="var(--primary)" />
                         Excel Student Directory & Award Label Studio
                     </h2>
                     <p className="page-subtitle">
@@ -215,7 +233,7 @@ export default function StudentsPage() {
                     >
                         <Sparkles size={16} /> Create Custom Label
                     </button>
-                    <button className="btn btn-secondary" onClick={() => setShowAddModal(true)}>
+                    <button className="btn btn-secondary" onClick={() => { setShowAddModal(true); setErrorMsg(''); }}>
                         <Plus size={16} /> Add Single Student
                     </button>
                     {students.length > 0 && (
@@ -226,12 +244,12 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            {/* Quick Award Label Tagging Toolbar */}
+            {/* Quick Tagging Toolbar */}
             <div style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border)',
-                borderRadius: 14,
-                padding: '16px 20px',
+                borderRadius: 10,
+                padding: '14px 18px',
                 marginBottom: 20,
                 display: 'flex',
                 alignItems: 'center',
@@ -240,15 +258,15 @@ export default function StudentsPage() {
                 gap: 12
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Tag size={18} color="var(--primary)" />
-                    <span style={{ fontWeight: 700, fontSize: 14 }}>Batch Award Label Tagging:</span>
+                    <Tag size={16} color="var(--primary)" />
+                    <span style={{ fontWeight: 700, fontSize: 13.5 }}>Batch Award Label Tagging:</span>
                     <span style={{ fontSize: 12, color: 'var(--text-light)' }}>
                         ({selectedStudentIds.length} selected)
                     </span>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {labelsList.slice(0, 6).map((lbl) => (
+                    {labelsList.slice(0, 5).map((lbl) => (
                         <button
                             key={lbl.id}
                             className="btn btn-secondary"
@@ -256,7 +274,7 @@ export default function StudentsPage() {
                             disabled={selectedStudentIds.length === 0}
                             style={{
                                 fontSize: 12,
-                                padding: '6px 12px',
+                                padding: '5px 10px',
                                 opacity: selectedStudentIds.length === 0 ? 0.5 : 1
                             }}
                         >
@@ -296,18 +314,18 @@ export default function StudentsPage() {
                 </div>
             </div>
 
-            {/* Students Table or Clean Empty State */}
+            {/* Empty State vs Table */}
             {filteredStudents.length === 0 ? (
-                <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-                    <FileSpreadsheet size={48} color="var(--primary)" style={{ marginBottom: 16, opacity: 0.8 }} />
-                    <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
+                <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+                    <FileSpreadsheet size={40} color="var(--text-light)" style={{ marginBottom: 12 }} />
+                    <h3 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 6px 0', color: 'var(--text-primary)' }}>
                         No Students in Directory
                     </h3>
-                    <p style={{ fontSize: 14, color: 'var(--text-light)', maxWidth: 460, margin: '0 auto 24px', lineHeight: 1.6 }}>
-                        Upload your event Excel file (.xlsx, .xls, .csv) to automatically fetch student rosters and map award labels.
+                    <p style={{ fontSize: 13, color: 'var(--text-light)', maxWidth: 420, margin: '0 auto 20px', lineHeight: 1.5 }}>
+                        Upload your event Excel file (.xlsx, .xls, .csv) to automatically parse student rosters and tag award labels.
                     </p>
                     <button className="btn btn-primary" onClick={() => fileInputRef.current?.click()} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <Upload size={16} /> Import Excel Student File
+                        <Upload size={16} /> Upload Excel File
                     </button>
                 </div>
             ) : (
@@ -325,7 +343,7 @@ export default function StudentsPage() {
                                 <th>Student Name</th>
                                 <th>Roll / Reg No.</th>
                                 <th>Department</th>
-                                <th>Assigned Award Label / Category</th>
+                                <th>Assigned Award Label</th>
                                 <th style={{ textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
@@ -336,7 +354,7 @@ export default function StudentsPage() {
                                 const labelText = st.awardLabel || st.category || 'Participant';
 
                                 return (
-                                    <tr key={id} style={{ background: isSelected ? 'rgba(16, 185, 129, 0.05)' : undefined }}>
+                                    <tr key={id} style={{ background: isSelected ? 'rgba(37, 99, 235, 0.04)' : undefined }}>
                                         <td>
                                             <input
                                                 type="checkbox"
@@ -363,18 +381,18 @@ export default function StudentsPage() {
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 gap: 6,
-                                                padding: '4px 10px',
-                                                borderRadius: 16,
-                                                fontSize: 12,
+                                                padding: '3px 10px',
+                                                borderRadius: 12,
+                                                fontSize: 11.5,
                                                 fontWeight: 700,
                                                 background: labelText.includes('Winner') ? 'rgba(212, 175, 55, 0.15)' :
                                                             labelText.includes('Runner') ? 'rgba(192, 192, 192, 0.2)' :
-                                                            labelText.includes('Appreciation') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.12)',
+                                                            labelText.includes('Appreciation') ? 'rgba(220, 38, 38, 0.12)' : 'rgba(37, 99, 235, 0.12)',
                                                 color: labelText.includes('Winner') ? '#B8860B' :
-                                                       labelText.includes('Runner') ? '#6B7280' :
-                                                       labelText.includes('Appreciation') ? '#DC2626' : '#059669'
+                                                       labelText.includes('Runner') ? '#475569' :
+                                                       labelText.includes('Appreciation') ? '#DC2626' : '#2563EB'
                                             }}>
-                                                <Award size={14} /> {labelText}
+                                                <Award size={13} /> {labelText}
                                             </span>
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
@@ -388,14 +406,13 @@ export default function StudentsPage() {
                                         </td>
                                     </tr>
                                 );
-                            })
-                        }
+                            })}
                         </tbody>
                     </table>
                 </div>
             )}
 
-            {/* Excel Import Preview Modal */}
+            {/* Excel Preview Modal */}
             <Modal title={`Import Excel Data (${excelFileName})`} isOpen={showExcelModal} onClose={() => setShowExcelModal(false)}>
                 <p style={{ fontSize: 13, color: 'var(--text-light)', marginBottom: 16 }}>
                     Parsed <strong style={{ color: 'var(--primary)' }}>{excelData.length} student rows</strong>. Review columns before importing:
@@ -429,13 +446,13 @@ export default function StudentsPage() {
                 <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                     <button className="btn btn-secondary" onClick={() => setShowExcelModal(false)}>Cancel</button>
                     <button className="btn btn-primary" onClick={handleConfirmExcelImport}>
-                        <CheckCircle2 size={16} /> Import All {excelData.length} Records
+                        <CheckCircle2 size={16} /> Confirm Import of {excelData.length} Records
                     </button>
                 </div>
             </Modal>
 
             {/* Create Custom Label Modal */}
-            <Modal title="Create Custom Certificate Award Label" isOpen={showLabelModal} onClose={() => setShowLabelModal(false)}>
+            <Modal title="Create Custom Award Label" isOpen={showLabelModal} onClose={() => setShowLabelModal(false)}>
                 <form onSubmit={handleCreateCustomLabel}>
                     <div className="form-group">
                         <label className="form-label">Award Label Title</label>
@@ -466,12 +483,12 @@ export default function StudentsPage() {
                                 className="form-control"
                                 value={customLabelForm.color}
                                 onChange={e => setCustomLabelForm({ ...customLabelForm, color: e.target.value })}
-                                style={{ height: 42, padding: 4 }}
+                                style={{ height: 40, padding: 4 }}
                             />
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
                         <button type="button" className="btn btn-secondary" onClick={() => setShowLabelModal(false)}>Cancel</button>
                         <button type="submit" className="btn btn-primary">Save Label</button>
                     </div>
@@ -480,7 +497,13 @@ export default function StudentsPage() {
 
             {/* Add Single Student Modal */}
             <Modal title="Add Single Student" isOpen={showAddModal} onClose={() => setShowAddModal(false)}>
-                <form onSubmit={handleAddSingleStudent}>
+                <form onSubmit={handleAddSingleStudent} noValidate>
+                    {errorMsg && (
+                        <div className="alert-banner alert-danger">
+                            <Lock size={15} /> {errorMsg}
+                        </div>
+                    )}
+
                     <div className="form-group">
                         <label className="form-label">Full Name</label>
                         <input
@@ -518,7 +541,7 @@ export default function StudentsPage() {
                         </select>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 24 }}>
+                    <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 20 }}>
                         <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
                         <button type="submit" className="btn btn-primary">Save Student</button>
                     </div>

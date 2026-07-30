@@ -1,22 +1,20 @@
 /**
  * @file mockDataStore.js
  * @description Pure Client-Side Browser Storage Engine for Cervify.
- * Features zero dummy data, admin registration, staff account creation & password resets, and SHA-256 certificate verification.
+ * Absolute zero dummy data state, backing Admin registration, staff governance, and SHA-256 verification.
  */
 
-// Initial pristine seed data (Clean Slate - No dummy students or events)
+// Absolute zero dummy students or events
 const DEFAULT_STAFF = [
-    { id: 'admin_1', name: 'System Administrator', email: 'admin@cervify.edu', username: 'admin', password: 'admin123', role: 'admin', department: 'Executive Board', createdAt: '2026-07-31' },
+    { id: 'admin_1', name: 'System Administrator', email: 'admin@cervify.edu', username: 'admin', password: 'admin123', role: 'admin', department: 'Executive Governance Board', createdAt: '2026-07-31' },
     { id: 'coord_1', name: 'Event Coordinator', email: 'coordinator@cervify.edu', username: 'coordinator', password: 'coord123', role: 'coordinator', department: 'Computer Science', createdAt: '2026-07-31' },
-    { id: 'principal_1', name: 'Dr. Ananya Roy (Principal)', email: 'principal@cervify.edu', username: 'principal', password: 'principal123', role: 'principal', department: 'Office of the Principal', createdAt: '2026-07-31' }
+    { id: 'principal_1', name: 'Principal / Signer', email: 'principal@cervify.edu', username: 'principal', password: 'principal123', role: 'principal', department: 'Office of the Principal', createdAt: '2026-07-31' }
 ];
 
 const DEFAULT_DEPARTMENTS = [
     { id: 1, name: 'Computer Science & Engineering', code: 'CSE' },
     { id: 2, name: 'Electrical & Electronics', code: 'EEE' },
-    { id: 3, name: 'Biotechnology & Life Sciences', code: 'BTS' },
-    { id: 4, name: 'Mechanical & Automation', code: 'MAE' },
-    { id: 5, name: 'School of Business & Commerce', code: 'SBC' }
+    { id: 3, name: 'School of Business & Commerce', code: 'SBC' }
 ];
 
 const DEFAULT_LABELS = [
@@ -24,8 +22,7 @@ const DEFAULT_LABELS = [
     { id: 'win2', title: '1st Runner Up', badge: '🥈', color: '#C0C0C0', description: 'Awarded to 2nd place runner up' },
     { id: 'win3', title: '2nd Runner Up', badge: '🥉', color: '#CD7F32', description: 'Awarded to 3rd place runner up' },
     { id: 'part', title: 'Certificate of Participation', badge: '📜', color: '#1E3A8A', description: 'Awarded to all event attendees' },
-    { id: 'appr', title: 'Special Merit & Appreciation', badge: '🎖️', color: '#8B0000', description: 'Awarded for extraordinary contribution' },
-    { id: 'spkr', title: 'Keynote Speaker / Guest', badge: '🎤', color: '#4B0082', description: 'Honoring event guest speakers' }
+    { id: 'appr', title: 'Special Merit & Appreciation', badge: '🎖️', color: '#8B0000', description: 'Awarded for extraordinary contribution' }
 ];
 
 function generateCertHash(certNo, studentName, eventName, date) {
@@ -66,7 +63,7 @@ class LocalDataStore {
         }
     }
 
-    // ── Staff & Credentials Management ──────────────────────────────────────
+    // ── Staff Accounts ───────────────────────────────────────────────────────
     getStaff() {
         return JSON.parse(localStorage.getItem('cervify_staff')) || DEFAULT_STAFF;
     }
@@ -82,17 +79,20 @@ class LocalDataStore {
 
     registerAdmin(adminData) {
         const staff = this.getStaff();
-        const existing = staff.find(s => s.username === adminData.username || s.email === adminData.email);
+        const cleanUsername = (adminData.username || adminData.email.split('@')[0]).trim();
+        const cleanEmail = adminData.email.trim().toLowerCase();
+
+        const existing = staff.find(s => s.username.toLowerCase() === cleanUsername.toLowerCase() || s.email.toLowerCase() === cleanEmail);
         if (existing) {
-            throw new Error('An account with this username or email already exists.');
+            throw new Error(`An account with username "${cleanUsername}" or email "${cleanEmail}" already exists.`);
         }
 
         const newAdmin = {
             id: `admin_${Date.now()}`,
-            name: adminData.name || 'System Admin',
-            email: adminData.email,
-            username: adminData.username || adminData.email.split('@')[0],
-            password: adminData.password,
+            name: adminData.name.trim(),
+            email: cleanEmail,
+            username: cleanUsername,
+            password: adminData.password.trim(),
             role: 'admin',
             department: adminData.department || 'Executive Board',
             createdAt: new Date().toISOString().split('T')[0]
@@ -106,17 +106,18 @@ class LocalDataStore {
     createStaffAccount(accountData) {
         const staff = this.getStaff();
         const cleanUsername = (accountData.username || accountData.email.split('@')[0]).trim();
+        const cleanEmail = accountData.email.trim().toLowerCase();
 
         if (staff.some(s => s.username.toLowerCase() === cleanUsername.toLowerCase())) {
-            throw new Error(`Username "${cleanUsername}" is already taken.`);
+            throw new Error(`Username "${cleanUsername}" is already assigned to another staff member.`);
         }
 
         const newAccount = {
             id: `staff_${Date.now()}`,
-            name: accountData.name,
-            email: accountData.email,
+            name: accountData.name.trim(),
+            email: cleanEmail,
             username: cleanUsername,
-            password: accountData.password || 'cervify123',
+            password: accountData.password.trim(),
             role: accountData.role || 'coordinator',
             department: accountData.department || 'General',
             createdAt: new Date().toISOString().split('T')[0]
@@ -160,8 +161,8 @@ class LocalDataStore {
         const newStudent = {
             id: Date.now(),
             rollNo: student.rollNo || `REG-${Math.floor(1000 + Math.random() * 9000)}`,
-            name: student.name || 'Student Name',
-            email: student.email || 'student@institution.edu',
+            name: student.name.trim(),
+            email: (student.email || 'student@institution.edu').trim(),
             department: student.department || 'General',
             category: student.category || 'Participant',
             awardLabel: student.awardLabel || 'Certificate of Participation',
@@ -176,12 +177,12 @@ class LocalDataStore {
         const current = this.getStudents();
         const formatted = newStudentsList.map((st, idx) => ({
             id: Date.now() + idx,
-            rollNo: st.rollNo || st['Roll No'] || st['Roll Number'] || st['Student ID'] || `REG-${1000 + idx}`,
-            name: st.name || st['Student Name'] || st['Name'] || st['Full Name'] || 'Student',
-            email: st.email || st['Email'] || st['Email Address'] || 'student@institution.edu',
-            department: st.department || st['Department'] || st['Dept'] || 'General',
-            category: st.category || st['Category'] || st['Role'] || st['Position'] || 'Participant',
-            awardLabel: st.awardLabel || st['Award Label'] || st['Label'] || st.category || 'Certificate of Participation'
+            rollNo: String(st.rollNo || st['Roll No'] || st['Roll Number'] || st['Student ID'] || `REG-${1000 + idx}`).trim(),
+            name: String(st.name || st['Student Name'] || st['Name'] || st['Full Name'] || 'Student').trim(),
+            email: String(st.email || st['Email'] || st['Email Address'] || 'student@institution.edu').trim(),
+            department: String(st.department || st['Department'] || st['Dept'] || 'General').trim(),
+            category: String(st.category || st['Category'] || st['Role'] || st['Position'] || 'Participant').trim(),
+            awardLabel: String(st.awardLabel || st['Award Label'] || st['Label'] || st.category || 'Certificate of Participation').trim()
         }));
         const updated = [...formatted, ...current];
         this.saveStudents(updated);
@@ -223,7 +224,7 @@ class LocalDataStore {
         return true;
     }
 
-    // ── Award Labels ─────────────────────────────────────────────────────────
+    // ── Award Labels & Departments ──────────────────────────────────────────
     getLabels() {
         return JSON.parse(localStorage.getItem('cervify_labels')) || DEFAULT_LABELS;
     }
@@ -232,7 +233,7 @@ class LocalDataStore {
         const labels = this.getLabels();
         const newLabel = {
             id: `custom_${Date.now()}`,
-            title: labelData.title,
+            title: labelData.title.trim(),
             badge: labelData.badge || '🎖️',
             color: labelData.color || '#1E3A8A',
             description: labelData.description || 'Custom event label'
@@ -267,7 +268,7 @@ class LocalDataStore {
         const activities = this.getActivities();
         const newAct = {
             id: Date.now(),
-            title: actData.title || 'Untitled Event',
+            title: actData.title.trim(),
             department: actData.department || 'General',
             category: actData.category || 'Event Batch',
             issueDate: actData.issueDate || new Date().toISOString().split('T')[0],
@@ -275,7 +276,7 @@ class LocalDataStore {
             principalApproved: false,
             principalSignature: null,
             signatureDate: null,
-            totalStudents: actData.studentIds ? actData.studentIds.length : this.getStudents().length,
+            totalStudents: this.getStudents().length,
             certTemplate: actData.certTemplate || {
                 bgDesign: 'gold_luxury',
                 customBgUrl: '',

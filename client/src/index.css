@@ -1,7 +1,7 @@
 /**
  * @file index.css
- * @description Cervify Design System — Minimal Clean Business Portal
- * Light corporate aesthetic, crisp borders, dark navy typography, zero fancy clutter.
+ * @description Cervify Design System — Minimal Light Business Portal
+ * Light academic slate theme, crisp white surfaces, professional typography, zero dark panels.
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Cinzel:wght@600;700;800&family=Great+Vibes&display=swap');
@@ -11,13 +11,12 @@
   --font-heading: 'Plus Jakarta Sans', sans-serif;
   --font-body:    'Inter', sans-serif;
 
-  /* Primary Palette — Corporate Slate & Deep Navy */
+  /* Primary Palette — Corporate Slate & Crisp Blue */
   --primary:          #0F172A;
   --primary-hover:    #1E293B;
   --primary-light:    #F1F5F9;
-  --primary-glow:     rgba(15, 23, 42, 0.12);
 
-  /* Accent — Professional Blue */
+  /* Accent — Executive Blue */
   --accent:           #2563EB;
   --accent-hover:     #1D4ED8;
   --accent-light:     #EFF6FF;
@@ -30,7 +29,7 @@
   --danger:           #DC2626;
   --danger-light:     #FEF2F2;
 
-  /* Background Layers — Light Clean Minimal */
+  /* Background Layers — 100% Light Slate */
   --bg-app:           #F8FAFC;
   --bg-surface:       #FFFFFF;
   --bg-surface-2:     #F1F5F9;
@@ -45,14 +44,14 @@
   --text-secondary:   #334155;
   --text-light:       #64748B;
 
-  /* Sidebar Theme — Deep Executive Navy */
-  --sidebar-bg:         #0F172A;
-  --sidebar-border:     #1E293B;
-  --sidebar-text:       #F8FAFC;
-  --sidebar-text-muted: #94A3B8;
-  --sidebar-accent:     #38BDF8;
-  --sidebar-accent-bg:  #1E293B;
-  --sidebar-active-bg:  rgba(56, 189, 248, 0.14);
+  /* Sidebar Theme — 100% Light Academic Crisp */
+  --sidebar-bg:         #FFFFFF;
+  --sidebar-border:     #E2E8F0;
+  --sidebar-text:       #0F172A;
+  --sidebar-text-muted: #64748B;
+  --sidebar-accent:     #2563EB;
+  --sidebar-accent-bg:  #F1F5F9;
+  --sidebar-active-bg:  #EFF6FF;
 
   /* Radii & Layout */
   --sidebar-width:    260px;
@@ -168,7 +167,7 @@ button, input, select, textarea {
   margin: 0;
 }
 
-/* ── Sidebar Component ────────────────────────────────────────────── */
+/* ── Sidebar Component (100% Light Theme) ─────────────────────────── */
 .sidebar {
   width: var(--sidebar-width);
   background: var(--sidebar-bg);
@@ -189,7 +188,7 @@ button, input, select, textarea {
   gap: 10px;
   padding: 20px 18px;
   border-bottom: 1px solid var(--sidebar-border);
-  color: white;
+  color: var(--text-primary);
 }
 
 .sidebar-menu {
@@ -228,6 +227,7 @@ button, input, select, textarea {
 .sidebar-footer {
   padding: 14px;
   border-top: 1px solid var(--sidebar-border);
+  background: #F8FAFC;
 }
 
 .user-info-card {
@@ -236,7 +236,8 @@ button, input, select, textarea {
   gap: 10px;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
+  background: #FFFFFF;
+  border: 1px solid var(--border);
 }
 
 .user-avatar {
@@ -260,7 +261,7 @@ button, input, select, textarea {
 .user-name {
   font-size: 12.5px;
   font-weight: 700;
-  color: white;
+  color: var(--text-primary);
 }
 
 .user-role {
@@ -285,11 +286,11 @@ button, input, select, textarea {
 }
 
 .btn-primary {
-  background: var(--primary);
+  background: #2563EB;
   color: white;
 }
 .btn-primary:hover {
-  background: var(--primary-hover);
+  background: #1D4ED8;
 }
 
 .btn-secondary {
@@ -442,7 +443,7 @@ button, input, select, textarea {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
+  background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -457,11 +458,11 @@ button, input, select, textarea {
   width: 100%;
   max-width: 520px;
   padding: 24px 28px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
   border: 1px solid var(--border);
 }
 
-/* ── Responsive Layout Breakpoints ──────────────────────────────────── */
+/* ── Responsive Breakpoints ────────────────────────────────────────── */
 @media (max-width: 992px) {
   :root { --sidebar-width: 220px; }
 }

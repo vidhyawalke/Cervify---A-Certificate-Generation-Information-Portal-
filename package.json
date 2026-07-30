@@ -3,19 +3,17 @@
   "version": "1.0.0",
   "description": "Cervify: A Certificate Generation & Information Portal",
   "scripts": {
-    "install-all": "npm install --prefix client && npm install --prefix server",
+    "build": "npm run build --prefix client",
+    "vercel-build": "npm install --prefix client && npm run build --prefix client",
+    "install-all": "npm install --prefix client",
     "build-client": "npm run build --prefix client",
-    "init-db": "node server/database/init_db.js",
-    "start": "node server/index.js",
-    "dev-backend": "node server/index.js",
+    "start": "npm run dev --prefix client",
     "dev-frontend": "npm run dev --prefix client"
   },
   "keywords": [
     "cervify",
     "certificate",
-    "generator",
-    "oauth2",
-    "sqlite"
+    "generator"
   ],
   "author": "Vidhya & Sakshi",
   "license": "ISC"

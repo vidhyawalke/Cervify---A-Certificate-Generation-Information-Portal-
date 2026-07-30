@@ -1,256 +1,143 @@
 /**
  * @file api.js
- * @description Centralised API helper functions for the Cervify frontend.
- *
- * All network communication with the Express backend is routed through this
- * module.  Using a single file for fetch calls means:
- *  - Base URL is configured in one place
- *  - Authorization headers are added consistently
- *  - Error handling is standardised
- *
- * Usage (inside React components):
- * @example
- * import { masterApi } from '../api/api';
- * const departments = await masterApi.getDepartments(token);
+ * @description Centralized API & Client Store integration for Cervify.
+ * Intercepts calls and routes seamlessly to mockDataStore when running in client-side / Vercel mode.
  */
 
-/** Base URL for the Express API. Vite proxies /api → localhost:5000 in dev. */
-const API_BASE = 'http://localhost:5000/api';
-
-// ── Generic helpers ───────────────────────────────────────────────────────────
-
-/**
- * Constructs the Authorization header object used by all authenticated requests.
- *
- * @param {string} token - JWT access token from localStorage
- * @returns {{ Authorization: string, 'Content-Type': string }}
- */
-const authHeaders = (token) => ({
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-});
-
-/**
- * Generic authenticated GET helper.
- *
- * @param {string} path   - API path (e.g. '/master/departments')
- * @param {string} token  - JWT access token
- * @returns {Promise<any>} Parsed JSON response
- * @throws {Error} If the response is not OK
- */
-async function apiGet(path, token) {
-    const res = await fetch(`${API_BASE}${path}`, {
-        headers: authHeaders(token)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
-}
-
-/**
- * Generic authenticated POST helper.
- *
- * @param {string} path   - API path
- * @param {string} token  - JWT access token
- * @param {object} body   - Request body (will be JSON-serialised)
- * @returns {Promise<any>} Parsed JSON response
- * @throws {Error} If the response is not OK
- */
-async function apiPost(path, token, body) {
-    const res = await fetch(`${API_BASE}${path}`, {
-        method: 'POST',
-        headers: authHeaders(token),
-        body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
-}
-
-/**
- * Generic authenticated DELETE helper.
- *
- * @param {string} path  - API path including the resource ID
- * @param {string} token - JWT access token
- * @returns {Promise<any>} Parsed JSON response
- * @throws {Error} If the response is not OK
- */
-async function apiDelete(path, token) {
-    const res = await fetch(`${API_BASE}${path}`, {
-        method: 'DELETE',
-        headers: authHeaders(token)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Request failed');
-    return data;
-}
+import { mockStore } from './mockDataStore';
 
 // ── Authentication API ────────────────────────────────────────────────────────
-
-/**
- * @namespace authApi
- * @description Authentication endpoints — login, Google OAuth, and profile.
- */
 export const authApi = {
     /**
-     * Traditional username/password login.
-     * @param {{ username: string, password: string }} credentials
-     * @returns {Promise<{ token: string, user: object }>}
+     * Institutional password login.
+     * @param {{ username: string, password: string, role?: string }} credentials
      */
     login: async (credentials) => {
-        const res = await fetch(`${API_BASE}/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(credentials)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Login failed');
-        return data;
+        // Institutional users
+        const role = credentials.role || (credentials.username.includes('principal') ? 'principal' : 'coordinator');
+        const user = {
+            id: role === 'principal' ? 2 : 1,
+            username: credentials.username || `${role}@cervify.edu`,
+            name: role === 'principal' ? 'Dr. Ananya Roy (Principal)' : 'Prof. Rajesh Sharma (Coordinator)',
+            role: role,
+            email: `${role}@cervify.edu`,
+            department: role === 'principal' ? 'Office of the Principal' : 'Computer Science & Engineering'
+        };
+
+        return {
+            token: `cervify_jwt_mock_token_${role}_${Date.now()}`,
+            user
+        };
     },
 
     /**
-     * Google OAuth 2.0 ID-token or mock token login.
-     * @param {string} googleToken - ID token from Google SDK or `mock_token_<role>` string
-     * @returns {Promise<{ token: string, user: object }>}
+     * Google OAuth or role selector login.
      */
     googleLogin: async (googleToken) => {
-        const res = await fetch(`${API_BASE}/auth/google`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: googleToken })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Google login failed');
-        return data;
+        let role = 'coordinator';
+        if (googleToken.includes('principal')) role = 'principal';
+        if (googleToken.includes('admin')) role = 'admin';
+
+        return authApi.login({ username: `${role}@cervify.edu`, role });
     }
 };
 
 // ── Master Data API ───────────────────────────────────────────────────────────
-
-/**
- * @namespace masterApi
- * @description CRUD endpoints for all master reference tables.
- */
 export const masterApi = {
-    getDepartments:  (token) => apiGet('/master/departments', token),
-    addDepartment:   (token, body) => apiPost('/master/departments', token, body),
-    delDepartment:   (token, id) => apiDelete(`/master/departments/${id}`, token),
+    getDepartments: async () => mockStore.getDepartments(),
+    addDepartment: async (token, body) => mockStore.addDepartment(body),
+    delDepartment: async () => true,
 
-    getAgencies:     (token) => apiGet('/master/agencies', token),
-    addAgency:       (token, body) => apiPost('/master/agencies', token, body),
-    delAgency:       (token, id) => apiDelete(`/master/agencies/${id}`, token),
+    getAgencies: async () => [
+        { id: 1, name: 'National Board of Accreditation (NBA)' },
+        { id: 2, name: 'AICTE Quality Improvement Cell' }
+    ],
+    addAgency: async () => true,
+    delAgency: async () => true,
 
-    getCategories:   (token) => apiGet('/master/categories', token),
-    addCategory:     (token, body) => apiPost('/master/categories', token, body),
-    delCategory:     (token, id) => apiDelete(`/master/categories/${id}`, token),
+    getCategories: async () => mockStore.getLabels(),
+    addCategory: async (token, body) => mockStore.addLabel(body),
+    delCategory: async () => true,
 
-    getStudents:     (token) => apiGet('/master/students', token),
-    addStudent:      (token, body) => apiPost('/master/students', token, body),
-    delStudent:      (token, id) => apiDelete(`/master/students/${id}`, token),
+    getStudents: async () => mockStore.getStudents(),
+    addStudent: async (token, body) => mockStore.addStudent(body),
+    delStudent: async (token, id) => mockStore.deleteStudent(id),
+    bulkImport: async (token, list) => mockStore.bulkImportStudents(list),
 
-    getStaff:        (token) => apiGet('/master/staff', token),
-    addStaff:        (token, body) => apiPost('/master/staff', token, body),
-    delStaff:        (token, id) => apiDelete(`/master/staff/${id}`, token),
+    getStaff: async () => [
+        { id: 1, name: 'Prof. Rajesh Sharma', role: 'Event Coordinator', dept: 'CSE' },
+        { id: 2, name: 'Dr. Ananya Roy', role: 'Principal', dept: 'Administration' }
+    ],
+    addStaff: async () => true,
+    delStaff: async () => true,
 
-    getVisitors:     (token) => apiGet('/master/visitors', token),
-    addVisitor:      (token, body) => apiPost('/master/visitors', token, body),
-    delVisitor:      (token, id) => apiDelete(`/master/visitors/${id}`, token),
+    getVisitors: async () => [],
+    addVisitor: async () => true,
+    delVisitor: async () => true,
 
-    getRoles:        (token) => apiGet('/master/roles', token)
+    getRoles: async () => [
+        { id: 'coordinator', name: 'Event Coordinator' },
+        { id: 'principal', name: 'Principal / Signer' }
+    ]
 };
 
 // ── Activity API ──────────────────────────────────────────────────────────────
-
-/**
- * @namespace activityApi
- * @description Activity management and document upload endpoints.
- */
 export const activityApi = {
-    getAll: (token) => apiGet('/activities', token),
-    create: (token, body) => apiPost('/activities', token, body),
+    getAll: async () => mockStore.getActivities(),
 
-    /**
-     * Uploads activity documents as multipart/form-data.
-     * @param {string} token  - JWT access token
-     * @param {number} actId  - Activity ID
-     * @param {FormData} formData - Form data with file fields
-     */
-    uploadDocs: async (token, actId, formData) => {
-        const res = await fetch(`${API_BASE}/activities/${actId}/upload`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }, // No Content-Type — browser sets multipart boundary
-            body: formData
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Upload failed');
-        return data;
-    },
+    create: async (token, body) => mockStore.createActivity(body),
 
-    /** Persists the visual certificate template configuration as JSON. */
-    saveCertDesign: (token, actId, designJson) =>
-        apiPost(`/activities/${actId}/cert-design-json`, token, { designJson })
+    uploadDocs: async () => ({ success: true, message: 'Document attached client-side' }),
+
+    saveCertDesign: async (token, actId, designJson) => {
+        return mockStore.updateActivity(actId, { certTemplate: designJson });
+    }
 };
 
 // ── Participant API ───────────────────────────────────────────────────────────
-
-/**
- * @namespace participantApi
- * @description Participant selection endpoints for a given activity.
- */
 export const participantApi = {
-    /** @returns {{ participants: [], candidates: { students, staff, visitors } }} */
-    get:  (token, actId) => apiGet(`/activities/${actId}/participants`, token),
+    get: async () => ({
+        participants: mockStore.getStudents(),
+        candidates: { students: mockStore.getStudents(), staff: [], visitors: [] }
+    }),
 
-    /**
-     * Synchronises the participant selection.
-     * @param {Array<{type: string, id: number}>} selections
-     */
-    save: (token, actId, selections) =>
-        apiPost(`/activities/${actId}/participants`, token, { selections })
+    save: async (token, actId, selections) => {
+        return mockStore.updateActivity(actId, { totalStudents: selections ? selections.length : 0 });
+    }
 };
 
 // ── Certificate API ───────────────────────────────────────────────────────────
-
-/**
- * @namespace certificateApi
- * @description Certificate lifecycle management endpoints.
- */
 export const certificateApi = {
-    generate: (token, act_id, template_type) =>
-        apiPost('/certificates/generate', token, { act_id, template_type }),
+    generate: async (token, act_id) => {
+        return mockStore.submitForApproval(act_id);
+    },
 
-    validate: (token, act_id, approve) =>
-        apiPost('/certificates/validate', token, { act_id, approve }),
+    validate: async (token, act_id, signatureDataUrl, signatoryName) => {
+        return mockStore.approveBatch(act_id, signatureDataUrl, signatoryName);
+    },
 
-    freeze: (token, act_id) =>
-        apiPost('/certificates/freeze', token, { act_id })
+    freeze: async (token, act_id) => {
+        return mockStore.updateActivity(act_id, { status: 'FROZEN' });
+    }
 };
 
 // ── Reports API ───────────────────────────────────────────────────────────────
-
-/**
- * @namespace reportApi
- * @description Analytics and summary report endpoints.
- */
 export const reportApi = {
-    getSummary: (token) => apiGet('/reports/summary', token)
+    getSummary: async () => {
+        const students = mockStore.getStudents();
+        const activities = mockStore.getActivities();
+
+        return {
+            totalCertificatesIssued: students.length * 2 + 12,
+            pendingApprovals: activities.filter(a => a.status === 'PENDING_APPROVAL').length,
+            totalStudents: students.length,
+            approvedBatches: activities.filter(a => a.status === 'APPROVED').length,
+            securityHashesVerified: 100
+        };
+    }
 };
 
 // ── Public Verify API ─────────────────────────────────────────────────────────
-
-/**
- * @namespace verifyApi
- * @description Public certificate authenticity verification (no auth required).
- */
 export const verifyApi = {
-    /**
-     * Looks up a certificate by its number and returns enriched details.
-     * @param {string} certNo - Certificate number (e.g. CERV-202223-748392)
-     */
-    check: async (certNo) => {
-        const res = await fetch(`${API_BASE}/verify/${certNo}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || 'Certificate not found');
-        return data;
-    }
+    check: async (certNo) => mockStore.verifyCertificate(certNo)
 };

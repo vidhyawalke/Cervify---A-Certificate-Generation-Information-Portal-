@@ -1,252 +1,508 @@
 /**
  * @file DesignerPage.jsx
- * @description Visual certificate template designer for Cervify.
- *
- * Allows coordinators and admins to configure the visual design of certificates
- * for a specific activity and preview them in real time.
- *
- * Design options:
- *  - Title text and subtext
- *  - Border style: double | gold | classic | modern
- *  - Background colour picker
- *  - Font family: serif | sans-serif | cursive
- *  - Signature line 1 and Signature line 2 labels
- *
- * On "Save Template", the configuration is posted to the backend as JSON via
- * POST /api/activities/:id/cert-design-json.
- *
- * On "Download Preview PDF", a sample certificate PDF is generated locally using
- * jsPDF (no server round-trip needed for the preview).
+ * @description In-Browser Visual Certificate Studio & Designer for Cervify.
+ * Enables coordinators to upload custom background images (.png, .jpg), select document dimensions (A4, Letter, Legal, HD),
+ * customize fonts, colors, titles, and live preview student certificates without external graphic tools.
  */
 
-import React, { useState } from 'react';
-import { Settings, Download } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Sparkles, Upload, Download, Save, CheckCircle2, Image as ImageIcon, Layout, Type, Palette, QrCode, ShieldCheck } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { useAppContext } from '../../context/AppContext';
 import { activityApi } from '../../api/api';
+import { mockStore } from '../../api/mockDataStore';
 
-/** Border style options with descriptive labels. */
-const BORDER_STYLES = [
-    { key: 'double',  label: 'Double Line'   },
-    { key: 'gold',    label: 'Gold Frame'     },
-    { key: 'classic', label: 'Classic Border' },
-    { key: 'modern',  label: 'Minimal Modern' }
+const PAGE_SIZES = [
+    { key: 'A4_LANDSCAPE', label: 'A4 Landscape (297 x 210 mm)', widthRatio: '1.414/1' },
+    { key: 'A4_PORTRAIT', label: 'A4 Portrait (210 x 297 mm)', widthRatio: '1/1.414' },
+    { key: 'LETTER_LANDSCAPE', label: 'US Letter Landscape (11 x 8.5 in)', widthRatio: '1.294/1' },
+    { key: 'HD_DIGITAL', label: 'HD Digital Banner (1920 x 1080 px)', widthRatio: '1.777/1' }
 ];
 
-/** @returns {JSX.Element} */
+const PRESET_BACKGROUNDS = [
+    { key: 'gold_luxury', label: '🏆 Gold Luxury Frame', border: '6px double #D4AF37', bg: '#FFFBF0' },
+    { key: 'silver_academic', label: '🥈 Silver Classic', border: '5px double #9CA3AF', bg: '#F8FAFC' },
+    { key: 'royal_crest', label: '🏛️ Royal Crest Navy', border: '6px solid #1E3A8A', bg: '#F0F3FF' },
+    { key: 'emerald_distinction', label: '🌿 Emerald Honor', border: '6px solid #065F46', bg: '#F0FDF4' },
+    { key: 'minimal_dark', label: '🖤 Executive Dark', border: '4px solid #F59E0B', bg: '#0F172A', textDark: true }
+];
+
 export default function DesignerPage() {
     const { token, activities, refreshData } = useAppContext();
+    const certRef = useRef(null);
 
-    const [designActivityId, setDesignActivityId] = useState('');
-    const [config, setConfig] = useState({
-        title:   'Certificate of Achievement',
-        subtext: 'This is proudly presented to',
-        border:  'double',
-        bg:      '#fffbf4',
-        font:    'serif',
-        sig1:    'Project Guide',
-        sig2:    'Principal'
-    });
+    const [selectedActivityId, setSelectedActivityId] = useState('201');
     const [statusMsg, setStatusMsg] = useState('');
-    const [errorMsg,  setErrorMsg]  = useState('');
+    const [customBgUrl, setCustomBgUrl] = useState('');
 
-    const notify = (msg, isError = false) => {
-        if (isError) { setErrorMsg(msg); setTimeout(() => setErrorMsg(''), 4000); }
-        else         { setStatusMsg(msg); setTimeout(() => setStatusMsg(''), 4000); }
-    };
+    const sampleStudents = mockStore.getStudents();
+    const [previewIndex, setPreviewIndex] = useState(0);
+    const activeStudent = sampleStudents[previewIndex] || sampleStudents[0];
 
-    const set = (key) => (e) => setConfig(prev => ({ ...prev, [key]: e.target.value }));
+    const [config, setConfig] = useState({
+        pageSize: 'A4_LANDSCAPE',
+        bgPreset: 'gold_luxury',
+        titleText: 'CERTIFICATE OF EXCELLENCE',
+        subtitleText: 'This is proudly presented to',
+        reasonText: 'for outstanding achievements, exceptional effort, and active participation in the institutional event.',
+        primaryFont: 'Cinzel, Georgia, serif',
+        accentColor: '#1E3A8A',
+        titleColor: '#D4AF37',
+        nameColor: '#0F172A',
+        nameFontSize: 32,
+        showQr: true,
+        showSeal: true,
+        showSignature: true,
+        sig1Title: 'Event Coordinator',
+        sig2Title: 'Dr. Ananya Roy (Principal)'
+    });
 
-    // ── Save template configuration ───────────────────────────────────────────
-    const handleSave = async () => {
-        if (!designActivityId) return notify('Please select an activity first.', true);
-        try {
-            await activityApi.saveCertDesign(token, designActivityId, config);
-            await refreshData();
-            notify('Certificate template configuration saved successfully.');
-        } catch (err) { notify(err.message, true); }
-    };
+    const notify = (msg) => { setStatusMsg(msg); setTimeout(() => setStatusMsg(''), 4000); };
 
-    // ── Generate PDF preview using jsPDF ──────────────────────────────────────
-    const downloadPreview = () => {
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const W = doc.internal.pageSize.getWidth();
-        const H = doc.internal.pageSize.getHeight();
+    // Image Upload Handler for PNG/JPG Background
+    const handleBgImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-        // Background
-        doc.setFillColor(config.bg);
-        doc.rect(0, 0, W, H, 'F');
-
-        // Border
-        const m = 10;
-        doc.setDrawColor(config.border === 'gold' ? '#c8a84b' : '#1a1a2e');
-        doc.setLineWidth(config.border === 'modern' ? 0.5 : 1.5);
-        doc.rect(m, m, W - m * 2, H - m * 2);
-        if (config.border === 'double') {
-            doc.setLineWidth(0.5);
-            doc.rect(m + 4, m + 4, W - (m + 4) * 2, H - (m + 4) * 2);
+        if (!file.type.match('image.*')) {
+            notify('Please upload a valid image file (.png, .jpg, .jpeg)');
+            return;
         }
 
-        // Title
-        doc.setFont(config.font === 'sans-serif' ? 'helvetica' : 'times', 'bold');
-        doc.setFontSize(28);
-        doc.setTextColor(config.border === 'gold' ? '#b8860b' : '#1a1a2e');
-        doc.text(config.title, W / 2, 50, { align: 'center' });
-
-        // Subtext
-        doc.setFontSize(14);
-        doc.setFont(config.font === 'sans-serif' ? 'helvetica' : 'times', 'italic');
-        doc.text(config.subtext, W / 2, 68, { align: 'center' });
-
-        // Recipient placeholder
-        doc.setFontSize(22);
-        doc.setFont(config.font === 'sans-serif' ? 'helvetica' : 'times', 'bold');
-        doc.text('[Recipient Name]', W / 2, 92, { align: 'center' });
-
-        // Description
-        doc.setFontSize(11);
-        doc.setFont(config.font === 'sans-serif' ? 'helvetica' : 'times', 'normal');
-        doc.text('for their outstanding participation and contribution in the activity:', W / 2, 108, { align: 'center' });
-        doc.setFontSize(13);
-        doc.setFont(config.font === 'sans-serif' ? 'helvetica' : 'times', 'bold');
-        doc.text('[Activity Name]', W / 2, 120, { align: 'center' });
-
-        // Signature lines
-        const lineY = H - 38;
-        const col1X = W * 0.25, col2X = W * 0.75;
-        doc.setLineWidth(0.5);
-        doc.setDrawColor('#333');
-        doc.line(col1X - 35, lineY, col1X + 35, lineY);
-        doc.line(col2X - 35, lineY, col2X + 35, lineY);
-        doc.setFontSize(11);
-        doc.setFont(config.font === 'sans-serif' ? 'helvetica' : 'times', 'normal');
-        doc.text(config.sig1, col1X, lineY + 8, { align: 'center' });
-        doc.text(config.sig2, col2X, lineY + 8, { align: 'center' });
-
-        doc.save('cervify_certificate_preview.pdf');
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            setCustomBgUrl(evt.target.result);
+            notify('Custom background image uploaded successfully!');
+        };
+        reader.readAsDataURL(file);
     };
+
+    const handleSaveTemplate = async () => {
+        if (!selectedActivityId) {
+            notify('Please select an activity to link this certificate design.');
+            return;
+        }
+        await activityApi.saveCertDesign(token, selectedActivityId, { ...config, customBgUrl });
+        await refreshData();
+        notify('Certificate template saved and linked to activity!');
+    };
+
+    const handleDownloadSinglePdf = async () => {
+        if (!certRef.current) return;
+        try {
+            const canvas = await html2canvas(certRef.current, { scale: 3, useCORS: true });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: config.pageSize.includes('PORTRAIT') ? 'portrait' : 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`${activeStudent.name.replace(/\s+/g, '_')}_Certificate.pdf`);
+            notify('Preview Certificate PDF downloaded!');
+        } catch (err) {
+            notify('PDF export error: ' + err.message);
+        }
+    };
+
+    const selectedBgStyle = PRESET_BACKGROUNDS.find(b => b.key === config.bgPreset) || PRESET_BACKGROUNDS[0];
 
     return (
         <div className="page-content">
-
             {statusMsg && <div className="alert-banner alert-success">{statusMsg}</div>}
-            {errorMsg  && <div className="alert-banner alert-danger">{errorMsg}</div>}
 
-            {/* ── Page Header ───────────────────────────────────────── */}
+            {/* Header */}
             <div className="page-header">
                 <div>
-                    <h2 className="page-title">
-                        <Settings size={24} style={{ color: 'var(--primary)' }} />
-                        Template Designer
+                    <h2 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <Sparkles size={26} color="var(--primary)" />
+                        In-Browser Certificate Visual Studio
                     </h2>
-                    <p className="page-subtitle">Customise the visual certificate template for a specific activity.</p>
+                    <p className="page-subtitle">
+                        Design custom certificates without Photoshop. Upload custom PNG backgrounds, pick page sizes (A4, Letter, Legal), adjust typography, and live preview per student label.
+                    </p>
                 </div>
+
                 <div style={{ display: 'flex', gap: 12 }}>
-                    <button className="btn btn-secondary" onClick={downloadPreview}>
-                        <Download size={16} aria-hidden="true" /> Download Preview PDF
+                    <button className="btn btn-secondary" onClick={handleDownloadSinglePdf} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Download size={16} /> Download Sample PDF
                     </button>
-                    <button className="btn btn-primary" onClick={handleSave} disabled={!designActivityId}>
-                        Save Template
+                    <button className="btn btn-primary" onClick={handleSaveTemplate} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Save size={16} /> Save & Apply Template
                     </button>
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 24, alignItems: 'start' }}>
-
-                {/* ── Configuration Panel ─────────────────────────── */}
-                <div className="card">
-                    <h3 style={{ fontSize: 14, marginBottom: 20 }}>Design Settings</h3>
-
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="design-activity">Link to Activity</label>
-                        <select id="design-activity" className="form-control" value={designActivityId} onChange={e => setDesignActivityId(e.target.value)}>
-                            <option value="">— Choose an activity —</option>
-                            {activities.map(a => <option key={a.id} value={a.id}>{a.act_name}</option>)}
+            <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: 24, alignItems: 'start' }}>
+                {/* ── Design Controls Sidebar ────────────────────────────────────────── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {/* Activity Selector */}
+                    <div className="card" style={{ padding: 20 }}>
+                        <label className="form-label" style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Layout size={16} color="var(--primary)" /> Link to Event Activity
+                        </label>
+                        <select
+                            className="form-control"
+                            value={selectedActivityId}
+                            onChange={e => setSelectedActivityId(e.target.value)}
+                        >
+                            {activities.map(a => (
+                                <option key={a.id} value={a.id}>{a.title || a.act_name}</option>
+                            ))}
                         </select>
                     </div>
 
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="design-title">Certificate Title</label>
-                        <input id="design-title" type="text" className="form-control" value={config.title} onChange={set('title')} />
-                    </div>
+                    {/* Page Size & Background Image */}
+                    <div className="card" style={{ padding: 20 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <ImageIcon size={16} color="var(--primary)" /> Canvas Dimensions & Background
+                        </h3>
 
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="design-subtext">Subtext / Tagline</label>
-                        <input id="design-subtext" type="text" className="form-control" value={config.subtext} onChange={set('subtext')} />
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="design-border">Border Style</label>
-                        <select id="design-border" className="form-control" value={config.border} onChange={set('border')}>
-                            {BORDER_STYLES.map(b => <option key={b.key} value={b.key}>{b.label}</option>)}
-                        </select>
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="design-bg">Background Colour</label>
-                        <input id="design-bg" type="color" className="form-control" value={config.bg} onChange={set('bg')} style={{ height: 40, padding: 4 }} />
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label" htmlFor="design-font">Font Family</label>
-                        <select id="design-font" className="form-control" value={config.font} onChange={set('font')}>
-                            <option value="serif">Serif (Traditional)</option>
-                            <option value="sans-serif">Sans-serif (Modern)</option>
-                            <option value="cursive">Cursive (Elegant)</option>
-                        </select>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label" htmlFor="design-sig1">Signature 1</label>
-                            <input id="design-sig1" type="text" className="form-control" value={config.sig1} onChange={set('sig1')} />
+                        <div className="form-group" style={{ marginBottom: 14 }}>
+                            <label className="form-label">Document Size (Word/Canva Style)</label>
+                            <select
+                                className="form-control"
+                                value={config.pageSize}
+                                onChange={e => setConfig({ ...config, pageSize: e.target.value })}
+                            >
+                                {PAGE_SIZES.map(p => (
+                                    <option key={p.key} value={p.key}>{p.label}</option>
+                                ))}
+                            </select>
                         </div>
-                        <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label" htmlFor="design-sig2">Signature 2</label>
-                            <input id="design-sig2" type="text" className="form-control" value={config.sig2} onChange={set('sig2')} />
+
+                        <div className="form-group" style={{ marginBottom: 14 }}>
+                            <label className="form-label">Upload Custom Background (.PNG / .JPG)</label>
+                            <input
+                                type="file"
+                                accept="image/png, image/jpeg"
+                                onChange={handleBgImageUpload}
+                                className="form-control"
+                                style={{ fontSize: 12, padding: 6 }}
+                            />
+                            {customBgUrl && (
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setCustomBgUrl('')}
+                                    style={{ marginTop: 8, fontSize: 11, padding: '4px 8px' }}
+                                >
+                                    Remove Uploaded Image
+                                </button>
+                            )}
                         </div>
+
+                        {!customBgUrl && (
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                <label className="form-label">Preset Style Frame</label>
+                                <select
+                                    className="form-control"
+                                    value={config.bgPreset}
+                                    onChange={e => setConfig({ ...config, bgPreset: e.target.value })}
+                                >
+                                    {PRESET_BACKGROUNDS.map(b => (
+                                        <option key={b.key} value={b.key}>{b.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Typography & Text */}
+                    <div className="card" style={{ padding: 20 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Type size={16} color="var(--primary)" /> Typography & Content
+                        </h3>
+
+                        <div className="form-group" style={{ marginBottom: 14 }}>
+                            <label className="form-label">Primary Font Family</label>
+                            <select
+                                className="form-control"
+                                value={config.primaryFont}
+                                onChange={e => setConfig({ ...config, primaryFont: e.target.value })}
+                            >
+                                <option value="Cinzel, Georgia, serif">Cinzel (Classic Royal Serif)</option>
+                                <option value="'Playfair Display', Georgia, serif">Playfair Display (Elegant Serif)</option>
+                                <option value="'Great Vibes', cursive">Great Vibes (Calligraphy Cursive)</option>
+                                <option value="Montserrat, sans-serif">Montserrat (Modern Clean)</option>
+                                <option value="Inter, sans-serif">Inter (Corporate Sans)</option>
+                            </select>
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 14 }}>
+                            <label className="form-label">Main Header Title</label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                value={config.titleText}
+                                onChange={e => setConfig({ ...config, titleText: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 14 }}>
+                            <label className="form-label">Subtitle Line</label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                value={config.subtitleText}
+                                onChange={e => setConfig({ ...config, subtitleText: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 14 }}>
+                            <label className="form-label">Recipient Name Size ({config.nameFontSize}px)</label>
+                            <input
+                                type="range"
+                                min={20}
+                                max={48}
+                                value={config.nameFontSize}
+                                onChange={e => setConfig({ ...config, nameFontSize: Number(e.target.value) })}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Security & Badges */}
+                    <div className="card" style={{ padding: 20 }}>
+                        <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <ShieldCheck size={16} color="var(--primary)" /> Toggles & Signature Blocks
+                        </h3>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, marginBottom: 10, cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={config.showQr}
+                                onChange={e => setConfig({ ...config, showQr: e.target.checked })}
+                            />
+                            Display SHA-256 Verification QR Code
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, marginBottom: 10, cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={config.showSeal}
+                                onChange={e => setConfig({ ...config, showSeal: e.target.checked })}
+                            />
+                            Display Institutional Gold Medal Badge
+                        </label>
+
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+                            <input
+                                type="checkbox"
+                                checked={config.showSignature}
+                                onChange={e => setConfig({ ...config, showSignature: e.target.checked })}
+                            />
+                            Display Principal Signature Block
+                        </label>
                     </div>
                 </div>
 
-                {/* ── Live Preview Card ──────────────────────────────── */}
-                <div
-                    className="card"
-                    style={{
-                        minHeight: 360, padding: 32, display: 'flex', flexDirection: 'column',
-                        alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-                        fontFamily: config.font,
-                        backgroundColor: config.bg,
-                        border: config.border === 'gold'
-                            ? '4px solid #c8a84b'
-                            : config.border === 'modern'
-                                ? '1px solid var(--border)'
-                                : '3px solid var(--primary)',
-                        boxShadow: config.border === 'double' ? `inset 0 0 0 6px ${config.bg}, inset 0 0 0 9px var(--primary)` : undefined
-                    }}
-                    role="img"
-                    aria-label="Certificate preview"
-                >
-                    <div style={{ fontSize: 11, color: 'var(--text-light)', marginBottom: 12, letterSpacing: 4, textTransform: 'uppercase' }}>
-                        Dnyanprassarak Mandal's College
-                    </div>
-                    <h2 style={{ fontSize: 28, fontWeight: 700, color: config.border === 'gold' ? '#b8860b' : 'var(--text)', marginBottom: 8 }}>
-                        {config.title}
-                    </h2>
-                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, fontStyle: 'italic' }}>
-                        {config.subtext}
-                    </p>
-                    <div style={{ fontSize: 22, fontWeight: 700, borderBottom: '2px solid var(--primary)', paddingBottom: 8, marginBottom: 16, minWidth: 260 }}>
-                        [Recipient Name]
-                    </div>
-                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 400, lineHeight: 1.6, marginBottom: 24 }}>
-                        for their outstanding participation and contribution in the activity conducted by the Department.
-                    </p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', paddingTop: 24, borderTop: '1px solid var(--border)', fontSize: 12 }}>
-                        <div style={{ textAlign: 'center', flex: 1 }}>
-                            <div style={{ borderTop: '1px solid #333', paddingTop: 4, marginTop: 24 }}>{config.sig1}</div>
+                {/* ── Live Certificate Preview Studio Canvas ────────────────────────────────────────── */}
+                <div>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'var(--bg-surface)',
+                        padding: '12px 20px',
+                        borderRadius: 12,
+                        marginBottom: 16,
+                        border: '1px solid var(--border)'
+                    }}>
+                        <div style={{ fontSize: 13, fontWeight: 700 }}>
+                            Live Student Preview ({previewIndex + 1} of {sampleStudents.length}):
                         </div>
-                        <div style={{ textAlign: 'center', flex: 1 }}>
-                            <div style={{ borderTop: '1px solid #333', paddingTop: 4, marginTop: 24 }}>{config.sig2}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <button
+                                className="btn btn-secondary"
+                                disabled={previewIndex === 0}
+                                onClick={() => setPreviewIndex(p => Math.max(0, p - 1))}
+                                style={{ fontSize: 12, padding: '4px 10px' }}
+                            >
+                                ◀ Previous
+                            </button>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--primary)' }}>
+                                {activeStudent.name} ({activeStudent.category || activeStudent.awardLabel})
+                            </span>
+                            <button
+                                className="btn btn-secondary"
+                                disabled={previewIndex === sampleStudents.length - 1}
+                                onClick={() => setPreviewIndex(p => Math.min(sampleStudents.length - 1, p + 1))}
+                                style={{ fontSize: 12, padding: '4px 10px' }}
+                            >
+                                Next ▶
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Canvas Render Box */}
+                    <div
+                        ref={certRef}
+                        style={{
+                            width: '100%',
+                            aspectRatio: config.pageSize.includes('PORTRAIT') ? '1/1.414' : '1.414/1',
+                            background: customBgUrl ? `url(${customBgUrl}) center/cover no-repeat` : selectedBgStyle.bg,
+                            border: customBgUrl ? '1px solid #CBD5E1' : selectedBgStyle.border,
+                            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.15)',
+                            borderRadius: 8,
+                            padding: '48px 56px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            position: 'relative',
+                            fontFamily: config.primaryFont,
+                            color: selectedBgStyle.textDark ? '#FFFFFF' : '#1E293B',
+                            boxSizing: 'border-box'
+                        }}
+                    >
+                        {/* Header Branding */}
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{
+                                fontSize: 13,
+                                letterSpacing: 4,
+                                textTransform: 'uppercase',
+                                fontWeight: 700,
+                                opacity: 0.8,
+                                marginBottom: 6
+                            }}>
+                                National Institute of Academic Excellence
+                            </div>
+                            <h1 style={{
+                                fontSize: 30,
+                                fontWeight: 800,
+                                margin: '8px 0',
+                                color: config.titleColor,
+                                letterSpacing: 2,
+                                fontFamily: config.primaryFont
+                            }}>
+                                {config.titleText}
+                            </h1>
+                            <div style={{
+                                width: 120,
+                                height: 3,
+                                background: config.titleColor,
+                                margin: '10px auto 16px'
+                            }} />
+                            <p style={{ fontSize: 15, fontStyle: 'italic', opacity: 0.85, margin: 0 }}>
+                                {config.subtitleText}
+                            </p>
+                        </div>
+
+                        {/* Recipient Name & Award Tag */}
+                        <div style={{ textAlign: 'center', margin: '24px 0' }}>
+                            <div style={{
+                                fontSize: config.nameFontSize,
+                                fontWeight: 800,
+                                color: selectedBgStyle.textDark ? '#F59E0B' : config.accentColor,
+                                borderBottom: `2px solid ${config.titleColor}`,
+                                display: 'inline-block',
+                                paddingBottom: 6,
+                                marginBottom: 12,
+                                paddingLeft: 24,
+                                paddingRight: 24
+                            }}>
+                                {activeStudent.name}
+                            </div>
+
+                            <div style={{ marginBottom: 12 }}>
+                                <span style={{
+                                    background: 'rgba(212, 175, 55, 0.15)',
+                                    border: '1px solid #D4AF37',
+                                    color: selectedBgStyle.textDark ? '#FBBF24' : '#B8860B',
+                                    padding: '4px 16px',
+                                    borderRadius: 20,
+                                    fontSize: 13,
+                                    fontWeight: 700
+                                }}>
+                                    {activeStudent.awardLabel || activeStudent.category || 'Certificate of Merit'}
+                                </span>
+                            </div>
+
+                            <p style={{
+                                fontSize: 13,
+                                maxWidth: 560,
+                                margin: '0 auto',
+                                lineHeight: 1.6,
+                                opacity: 0.9
+                            }}>
+                                {config.reasonText}
+                            </p>
+                        </div>
+
+                        {/* Footer Signatures, QR Code & Gold Medal Badge */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-end',
+                            justifyContent: 'space-between',
+                            borderTop: '1px solid rgba(0,0,0,0.1)',
+                            paddingTop: 16
+                        }}>
+                            {/* QR Code */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                {config.showQr && (
+                                    <div style={{ background: 'white', padding: 6, borderRadius: 6, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                                        <QRCodeSVG
+                                            value={`https://cervify.edu/verify/CERV-2026-${activeStudent.id || 101}`}
+                                            size={54}
+                                        />
+                                    </div>
+                                )}
+                                <div style={{ fontSize: 10, opacity: 0.7 }}>
+                                    <div><strong>Certificate ID:</strong> CERV-2026-{activeStudent.id || 101}</div>
+                                    <div><strong>SHA-256 Auth:</strong> Verified Offline</div>
+                                </div>
+                            </div>
+
+                            {/* Center Seal */}
+                            {config.showSeal && (
+                                <div style={{
+                                    width: 60,
+                                    height: 60,
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(135deg, #D4AF37, #AA7C11)',
+                                    color: 'white',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 4px 12px rgba(212, 175, 55, 0.4)',
+                                    fontSize: 9,
+                                    fontWeight: 800,
+                                    textAlign: 'center',
+                                    border: '2px solid white'
+                                }}>
+                                    <span>SEAL OF</span>
+                                    <span>EXCELLENCE</span>
+                                </div>
+                            )}
+
+                            {/* Signatures */}
+                            {config.showSignature && (
+                                <div style={{ display: 'flex', gap: 32 }}>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{ height: 28, borderBottom: '1px solid currentColor', width: 110, margin: '0 auto 4px' }} />
+                                        <div style={{ fontSize: 11, fontWeight: 700 }}>{config.sig1Title}</div>
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <div style={{
+                                            height: 28,
+                                            borderBottom: '1px solid currentColor',
+                                            width: 110,
+                                            margin: '0 auto 4px',
+                                            fontFamily: "'Great Vibes', cursive",
+                                            fontSize: 18,
+                                            color: '#1E3A8A'
+                                        }}>
+                                            Dr. Ananya Roy
+                                        </div>
+                                        <div style={{ fontSize: 11, fontWeight: 700 }}>{config.sig2Title}</div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -1,27 +1,17 @@
 /**
  * @file Sidebar.jsx
  * @description Premium academic sidebar navigation for Cervify.
- *
- * Design (Figma template):
- *  - Deep forest green background (#1A2535)
- *  - Warm amber active states and accents
- *  - Nunito typography
- *  - Amber avatar pill
- *  - Clean role-filtered nav with active left-border indicator
+ * Filters navigation items cleanly based on user role (Coordinator vs Principal vs Admin).
  */
 
 import React from 'react';
 import {
     Award, BarChart2, Settings, Users, Shield,
-    FileText, CheckSquare, LogOut, Compass, GraduationCap
+    FileText, CheckSquare, LogOut, Compass, Sparkles, FolderArchive
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import logoImg from '../../assets/logo.png';
 
-/**
- * Individual sidebar nav item with active indicator.
- * @param {{ icon, label, tabKey, badge? }} props
- */
 function SidebarItem({ icon, label, tabKey, badge }) {
     const { activeTab, setActiveTab } = useAppContext();
     const isActive = activeTab === tabKey;
@@ -31,7 +21,6 @@ function SidebarItem({ icon, label, tabKey, badge }) {
             className={`sidebar-item${isActive ? ' active' : ''}`}
             onClick={() => setActiveTab(tabKey)}
             role="menuitem"
-            aria-current={isActive ? 'page' : undefined}
             tabIndex={0}
             onKeyDown={e => e.key === 'Enter' && setActiveTab(tabKey)}
         >
@@ -61,10 +50,6 @@ function SidebarItem({ icon, label, tabKey, badge }) {
     );
 }
 
-/**
- * Section label separator in the sidebar.
- * @param {{ children: string }} props
- */
 function SidebarSection({ children }) {
     return (
         <div style={{
@@ -81,21 +66,18 @@ function SidebarSection({ children }) {
     );
 }
 
-/**
- * Main sidebar navigation.
- * @returns {JSX.Element}
- */
 export default function Sidebar() {
     const { user, logout } = useAppContext();
 
     const initials = user?.name
         ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-        : '??';
+        : 'CU';
+
+    const userRole = user?.role || 'coordinator';
 
     return (
         <nav className="sidebar" aria-label="Main navigation">
-
-            {/* ── Brand ─────────────────────────────────────────────── */}
+            {/* Brand Logo */}
             <div className="sidebar-logo">
                 <img src={logoImg} alt="Cervify Logo" style={{
                     width: 36, height: 36, objectFit: 'contain',
@@ -105,60 +87,48 @@ export default function Sidebar() {
                 <span>CERVIFY</span>
             </div>
 
-            {/* ── Navigation ────────────────────────────────────────── */}
+            {/* Navigation Menu */}
             <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-
                 <SidebarSection>Overview</SidebarSection>
                 <ul className="sidebar-menu" role="menu">
                     <SidebarItem icon={<BarChart2 size={16} />} label="Dashboard" tabKey="dashboard" />
                 </ul>
 
-                {/* Admin-only sections */}
-                {user?.role === 'admin' && (
+                {/* Event Coordinator Access */}
+                {(userRole === 'coordinator' || userRole === 'admin') && (
                     <>
-                        <SidebarSection>Management</SidebarSection>
+                        <SidebarSection>Student & Excel Data</SidebarSection>
                         <ul className="sidebar-menu" role="menu">
-                            <SidebarItem icon={<Settings  size={16} />} label="Depts & Agencies"  tabKey="departments" />
-                            <SidebarItem icon={<Users     size={16} />} label="Student Directory" tabKey="students"    />
-                            <SidebarItem icon={<Shield    size={16} />} label="Staff Accounts"    tabKey="staff"       />
-                            <SidebarItem icon={<Compass   size={16} />} label="Visitor Log"       tabKey="visitors"    />
+                            <SidebarItem icon={<Users size={16} />} label="Excel Student Directory" tabKey="students" />
                         </ul>
-                        <SidebarSection>Certificates</SidebarSection>
+
+                        <SidebarSection>Certificate Studio</SidebarSection>
                         <ul className="sidebar-menu" role="menu">
-                            <SidebarItem icon={<Award size={16} />} label="Issue Certificates" tabKey="generate_certs" />
+                            <SidebarItem icon={<Sparkles size={16} />} label="Template Studio" tabKey="designer" />
+                            <SidebarItem icon={<Award size={16} />} label="Issue & Export ZIP" tabKey="generate_certs" />
+                            <SidebarItem icon={<FileText size={16} />} label="Event Activities Log" tabKey="activities" />
                         </ul>
                     </>
                 )}
 
-                {/* Coordinator sections */}
-                {user?.role === 'coordinator' && (
+                {/* Principal Signer Access */}
+                {(userRole === 'principal' || userRole === 'admin') && (
                     <>
-                        <SidebarSection>Activities</SidebarSection>
+                        <SidebarSection>Principal Approvals</SidebarSection>
                         <ul className="sidebar-menu" role="menu">
-                            <SidebarItem icon={<FileText  size={16} />} label="Activity Log"      tabKey="activities" />
-                            <SidebarItem icon={<Settings  size={16} />} label="Template Designer" tabKey="designer"   />
-                        </ul>
-                    </>
-                )}
-
-                {/* Principal sections */}
-                {user?.role === 'principal' && (
-                    <>
-                        <SidebarSection>Approvals</SidebarSection>
-                        <ul className="sidebar-menu" role="menu">
-                            <SidebarItem icon={<CheckSquare size={16} />} label="Validations Queue" tabKey="validate" />
+                            <SidebarItem icon={<CheckSquare size={16} />} label="Approvals Queue" tabKey="validate" />
                         </ul>
                     </>
                 )}
             </div>
 
-            {/* ── User Footer ───────────────────────────────────────── */}
+            {/* User Footer */}
             <div className="sidebar-footer">
                 <div className="user-info-card">
                     <div className="user-avatar">{initials}</div>
                     <div className="user-details">
-                        <span className="user-name">{user?.name}</span>
-                        <span className="user-role">{user?.role}</span>
+                        <span className="user-name">{user?.name || 'Institutional User'}</span>
+                        <span className="user-role" style={{ textTransform: 'capitalize' }}>{userRole} Account</span>
                     </div>
                 </div>
                 <button
@@ -173,7 +143,6 @@ export default function Sidebar() {
                         color: 'rgba(226, 237, 230, 0.7)'
                     }}
                     onClick={logout}
-                    aria-label="Log out"
                 >
                     <LogOut size={14} />
                     Sign Out

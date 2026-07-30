@@ -1,115 +1,109 @@
 /**
  * @file App.jsx
- * @description Root application view router for Cervify.
- *
- * Handles top-level view switching between:
- *  'login'     → LoginPage
- *  'verify'    → VerifyPage
- *  'dashboard' → Sidebar + TopHeader + Active page
- *
- * This file is intentionally thin — all business logic lives in
- * context/, api/, and pages/.
+ * @description Root application router for Cervify.
+ * Integrates InactivityLock security guard, role-based views, and theme switching.
  */
 
 import React from 'react';
-import { Bell, Sun, Moon } from 'lucide-react';
+import { Bell, Sun, Moon, ShieldCheck } from 'lucide-react';
 import { useAppContext } from './context/AppContext';
 
-import LoginPage        from './pages/LoginPage';
-import LandingPage      from './pages/LandingPage';
-import VerifyPage       from './pages/VerifyPage';
-import DashboardPage    from './pages/dashboard/DashboardPage';
-import DepartmentsPage  from './pages/dashboard/DepartmentsPage';
-import StudentsPage     from './pages/dashboard/StudentsPage';
-import StaffPage        from './pages/dashboard/StaffPage';
-import VisitorsPage     from './pages/dashboard/VisitorsPage';
-import ActivitiesPage   from './pages/dashboard/ActivitiesPage';
-import GeneratePage     from './pages/dashboard/GeneratePage';
-import DesignerPage     from './pages/dashboard/DesignerPage';
-import ValidatePage     from './pages/dashboard/ValidatePage';
-import Sidebar          from './components/layout/Sidebar';
+import LoginPage from './pages/LoginPage';
+import LandingPage from './pages/LandingPage';
+import VerifyPage from './pages/VerifyPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
+import DepartmentsPage from './pages/dashboard/DepartmentsPage';
+import StudentsPage from './pages/dashboard/StudentsPage';
+import StaffPage from './pages/dashboard/StaffPage';
+import VisitorsPage from './pages/dashboard/VisitorsPage';
+import ActivitiesPage from './pages/dashboard/ActivitiesPage';
+import GeneratePage from './pages/dashboard/GeneratePage';
+import DesignerPage from './pages/dashboard/DesignerPage';
+import ValidatePage from './pages/dashboard/ValidatePage';
+import Sidebar from './components/layout/Sidebar';
+import InactivityLock from './components/security/InactivityLock';
 
-/** Page title map for the top header breadcrumb. */
 const PAGE_TITLES = {
-    dashboard:      'Analytics Dashboard',
-    departments:    'Depts & Agencies',
-    students:       'Student Directory',
-    staff:          'Staff Accounts',
-    visitors:       'Visitor Log',
-    activities:     'Activity Log',
-    generate_certs: 'Issue Certificates',
-    designer:       'Template Designer',
-    validate:       'Validations Queue'
+    dashboard: 'Analytics Dashboard',
+    departments: 'Depts & Agencies',
+    students: 'Excel Student Directory',
+    staff: 'Staff Accounts',
+    visitors: 'Visitor Log',
+    activities: 'Event Activity Log',
+    generate_certs: 'Issue & Export Certificates (ZIP)',
+    designer: 'Dynamic Template Studio',
+    validate: 'Principal Approvals Queue'
 };
 
-/**
- * Renders the correct page based on activeTab.
- * @param {{ activeTab: string }} props
- */
 function ActivePage({ activeTab }) {
     switch (activeTab) {
-        case 'dashboard':     return <DashboardPage />;
-        case 'departments':   return <DepartmentsPage />;
-        case 'students':      return <StudentsPage />;
-        case 'staff':         return <StaffPage />;
-        case 'visitors':      return <VisitorsPage />;
-        case 'activities':    return <ActivitiesPage />;
-        case 'generate_certs':return <GeneratePage />;
-        case 'designer':      return <DesignerPage />;
-        case 'validate':      return <ValidatePage />;
-        default:              return <DashboardPage />;
+        case 'dashboard': return <DashboardPage />;
+        case 'departments': return <DepartmentsPage />;
+        case 'students': return <StudentsPage />;
+        case 'staff': return <StaffPage />;
+        case 'visitors': return <VisitorsPage />;
+        case 'activities': return <ActivitiesPage />;
+        case 'generate_certs': return <GeneratePage />;
+        case 'designer': return <DesignerPage />;
+        case 'validate': return <ValidatePage />;
+        default: return <DashboardPage />;
     }
 }
 
-/**
- * Root App component — layout router only.
- * @returns {JSX.Element}
- */
 export default function App() {
-    const { currentView, activeTab, theme, toggleTheme } = useAppContext();
+    const { currentView, activeTab, theme, toggleTheme, user } = useAppContext();
 
     if (currentView === 'landing') return <LandingPage />;
-    if (currentView === 'login')  return <LoginPage />;
+    if (currentView === 'login') return <LoginPage />;
     if (currentView === 'verify') return <VerifyPage />;
 
     return (
-        <div className="app-shell">
-            {/* Sidebar navigation */}
-            <Sidebar />
+        <InactivityLock>
+            <div className="app-shell">
+                <Sidebar />
+                <div className="main-content">
+                    <header className="top-header" role="banner">
+                        <div className="header-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ color: 'var(--text-light)', fontWeight: 500 }}>Cervify Portal</span>
+                            <span style={{ color: 'var(--border-strong)' }}>›</span>
+                            <span style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                                {PAGE_TITLES[activeTab] || activeTab}
+                            </span>
+                            <span style={{
+                                marginLeft: 12,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                background: 'rgba(16, 185, 129, 0.1)',
+                                color: '#10B981',
+                                padding: '2px 8px',
+                                borderRadius: 12,
+                                fontSize: 11,
+                                fontWeight: 700
+                            }}>
+                                <ShieldCheck size={12} /> Bank Security (15m AFK)
+                            </span>
+                        </div>
 
-            {/* Main area */}
-            <div className="main-content">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 600 }}>
+                                Role: <span style={{ color: 'var(--primary)', textTransform: 'capitalize' }}>{user?.role || 'User'}</span>
+                            </div>
+                            <button
+                                className="theme-switch"
+                                onClick={toggleTheme}
+                                title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
+                            >
+                                {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+                            </button>
+                        </div>
+                    </header>
 
-                {/* ── Top Header ────────────────────────────────────── */}
-                <header className="top-header" role="banner">
-                    <div className="header-breadcrumb">
-                        <span style={{ color: 'var(--text-light)', fontWeight: 500 }}>Cervify</span>
-                        <span style={{ color: 'var(--border-strong)', margin: '0 6px' }}>›</span>
-                        <span style={{ fontWeight: 700, color: 'var(--primary)' }}>
-                            {PAGE_TITLES[activeTab] || activeTab}
-                        </span>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <button
-                            className="theme-switch"
-                            onClick={toggleTheme}
-                            title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-                        >
-                            {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-                        </button>
-                        <button className="theme-switch" title="Notifications">
-                            <Bell size={18} />
-                            <span className="notification-dot" />
-                        </button>
-                    </div>
-                </header>
-
-                {/* ── Page Content ───────────────────────────────────── */}
-                <main role="main" aria-label="Page content">
-                    <ActivePage activeTab={activeTab} />
-                </main>
+                    <main role="main" aria-label="Page content">
+                        <ActivePage activeTab={activeTab} />
+                    </main>
+                </div>
             </div>
-        </div>
+        </InactivityLock>
     );
 }
